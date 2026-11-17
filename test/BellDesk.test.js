@@ -66,7 +66,7 @@ describe("BellDesk", function () {
     );
 
     const Desk = await ethers.getContractFactory("BellDesk");
-    desk = await Desk.deploy(proxy.address, referee.address, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress());
+    desk = await Desk.deploy(proxy.address, referee.address, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress(), 10);
     await desk.waitForDeployment();
 
     await usdc.mint(buyer.address, 10_000_000000n);
@@ -78,7 +78,7 @@ describe("BellDesk", function () {
       const Desk = await ethers.getContractFactory("BellDesk");
       const u = await usdc.getAddress();
       const w = await weth.getAddress();
-      await expect(Desk.deploy(proxy.address, referee.address, w, u, await pm.getAddress())).to.be.revertedWithCustomError(
+      await expect(Desk.deploy(proxy.address, referee.address, w, u, await pm.getAddress(), 10)).to.be.revertedWithCustomError(
         Desk,
         "CurrencyNotSorted"
       );

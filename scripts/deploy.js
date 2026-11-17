@@ -15,6 +15,7 @@ const CHAINS = {
     usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     weth: "0x4200000000000000000000000000000000000006",
     poolManager: "0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408",
+    tickSpacing: 20, // fee-500 pool on Base, tick spacing 20 (the tick-10 pool there is broken)
     fundEth: "0.005",
   },
   unichainSepolia: {
@@ -23,6 +24,7 @@ const CHAINS = {
     usdc: "0x31d0220469e10c4E71834a79b1f276d740d3768F",
     weth: "0x4200000000000000000000000000000000000006",
     poolManager: "0x00B036B58a818B1BC34d502D3fE730Db729e62AC",
+    tickSpacing: 10, // reference pool on Unichain
     fundEth: "0.005",
   },
 };
@@ -55,7 +57,7 @@ async function main() {
     if (!cfg) throw new Error(`unknown chain ${key}`);
     if (!rec.referee) throw new Error("deploy the referee first (its address is the desk's callback sender)");
     const F = await ethers.getContractFactory("BellDesk");
-    const c = await F.deploy(cfg.callbackProxy, rec.referee, cfg.usdc, cfg.weth, cfg.poolManager, {
+    const c = await F.deploy(cfg.callbackProxy, rec.referee, cfg.usdc, cfg.weth, cfg.poolManager, cfg.tickSpacing, {
       value: ethers.parseEther(cfg.fundEth),
     });
     await c.waitForDeployment();
@@ -65,6 +67,7 @@ async function main() {
       usdc: cfg.usdc,
       weth: cfg.weth,
       poolManager: cfg.poolManager,
+      tickSpacing: cfg.tickSpacing,
       tx: c.deploymentTransaction().hash,
     };
     writeRecord(rec);

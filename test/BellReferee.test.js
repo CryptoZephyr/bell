@@ -84,7 +84,7 @@ describe("BellReferee", function () {
     );
 
     const Desk = await ethers.getContractFactory("BellDesk");
-    const desk = await Desk.deploy(proxy.address, refereeAddr, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress());
+    const desk = await Desk.deploy(proxy.address, refereeAddr, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress(), TICK_SPACING);
     await desk.waitForDeployment();
 
     const poolId = ethers.keccak256(
@@ -250,6 +250,23 @@ describe("BellReferee", function () {
 
   // ---------------------------------------------------------------- tests
 
+  it("lets only the deployer withdraw REACT from the referee, and only to a real address", async function () {
+    const Referee = await ethers.getContractFactory("BellReferee");
+    const fresh = await Referee.deploy({ value: ethers.parseEther("0.5") });
+    await fresh.waitForDeployment();
+    const freshAddr = await fresh.getAddress();
+
+    await expect(fresh.connect(outsider).withdraw(outsider.address, 1n)).to.be.revertedWithCustomError(fresh, "NotDeployer");
+    await expect(fresh.withdraw(ethers.ZeroAddress, 1n)).to.be.revertedWithCustomError(fresh, "ZeroAddress");
+
+    const before = await ethers.provider.getBalance(outsider.address);
+    await expect(fresh.withdraw(outsider.address, ethers.parseEther("0.2")))
+      .to.emit(fresh, "Withdrawn")
+      .withArgs(outsider.address, ethers.parseEther("0.2"));
+    expect(await ethers.provider.getBalance(outsider.address)).to.equal(before + ethers.parseEther("0.2"));
+    expect(await ethers.provider.getBalance(freshAddr)).to.equal(ethers.parseEther("0.3"));
+  });
+
   it("rejects react() from anyone but the system contract", async function () {
     const rec = { chainId: LASNA, contractAddress: CRON_CONTRACT, topic0: BigInt(CRON_TOPIC), topic1: 0n, topic2: 0n, topic3: 0n, data: "0x", blockNumber: 0n, opCode: 0n, blockHash: 0n, txHash: 0n, logIndex: 0n };
     await expect(referee.connect(outsider).react(rec)).to.be.revertedWithCustomError(referee, "NotAuthorized");
@@ -339,21 +356,14 @@ describe("BellReferee", function () {
     expect((await referee.orders(2)).open).to.equal(false);
   });
 
-  it("refunds an unmatched buyer on chain A, which has no reference pool", async function () {
+  it("swaps an unmatched buyer on chain A at that chain's pool (buyer-side fallback on every chain)", async function () {
     const A = chains.A;
     await observePrice();
     await place(A, buyer, true, LIMIT_HIGH, QTY); // no seller at all
 
-    const buyerUsdcA0 = await A.usdc.balanceOf(buyer.address);
+    const wethA0 = await A.weth.balanceOf(buyer.address);
     await ring();
-    const calls = trace.flatMap((t) => callbacks(t));
-    const swapSelectors = [
-      ethers.id("swapBuy(address,address,uint256)").slice(0, 10),
-      ethers.id("swapSell(address,address,uint256)").slice(0, 10),
-    ];
-    // No swap is requested on chain A. The pulled USDC comes back to the buyer in full.
-    expect(calls.some((c) => swapSelectors.includes(c.args.payload.slice(0, 10)))).to.equal(false);
-    expect(await A.usdc.balanceOf(buyer.address)).to.equal(buyerUsdcA0);
+    expect((await A.weth.balanceOf(buyer.address)) - wethA0).to.be.greaterThan(0);
     expect((await referee.orders(1)).open).to.equal(false);
   });
 

@@ -1,22 +1,24 @@
 {
-  "referee": "0x0171D1c5e89a31D56F576Ae4E1A059a324f05704",
-  "refereeTx": "0xb36cb5688a245aa799e4e8a3b12e3e56c0620786bf9d81d18173fc100e9cc452",
+  "referee": "0x997879FB6d2B38acB7d3D6AbbCf6764CCaDf1056",
+  "refereeTx": "0x0daca0abf61ffb7edc98b2d5815c0ea687103d448cb2c4fc558245f30b71986e",
   "baseSepolia": {
     "chainId": "84532",
-    "desk": "0x208492f354F0b4202BBD41b56c3def17e563127f",
+    "desk": "0xC93c558b1c1740377bB57947f087FADd923199DB",
     "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     "weth": "0x4200000000000000000000000000000000000006",
     "poolManager": "0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408",
-    "tx": "0x12e2c74a9c6a8d1a3501b31e445ffda636339bf91c7a31fb9586a41a5d977b07"
+    "tickSpacing": 20,
+    "tx": "0xdfafb92574166ca3891aa1b31a48db0b7af273040319b2e792fc880d3da2f890"
   },
   "unichainSepolia": {
     "chainId": "1301",
-    "desk": "0xAA3CA418303768BEef38E2Afba9c8F130cF022CE",
+    "desk": "0xE0e7ee9D6aC8b05Beb2fC76c7459B00c2869C19c",
     "usdc": "0x31d0220469e10c4E71834a79b1f276d740d3768F",
     "weth": "0x4200000000000000000000000000000000000006",
     "poolManager": "0x00B036B58a818B1BC34d502D3fE730Db729e62AC",
-    "tx": "0x94f79124390a1c7cfa25cb472f678b108acf364b73cb3ca5d3cd991d47d229c6"
+    "tickSpacing": 10,
+    "tx": "0xaa8739eb311322e72c925fe181cae74c906d996a99261ea6199050f0f88aadbc"
   },
-  "configureTx": "0x657a6229338b37c571db3418589fa4d3edc0e0af3797188d996c46e919459326",
+  "configureTx": "0xf2ab8480295d75a210ffce4d31cf1953abe4b762aa2f44aa50f464df44d0ab85",
   "poolIdB": "0x71fba4ef34765b317417131bb7cef92bd4c43405babf9386cacdd10cf8641422"
 }

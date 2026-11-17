@@ -32,9 +32,9 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
         uint256 qty; // WETH wei for both sides
     }
 
-    /// @dev Reference and fallback pool: USDC/WETH, 0.05%, tick spacing 10, no hooks.
+    /// @dev Fallback pool: USDC/WETH, 0.05%, no hooks. Tick spacing is set per chain (10 on Unichain, the reference pool).
     uint24 public constant POOL_FEE = 500;
-    int24 public constant POOL_TICK_SPACING = 10;
+    int24 public immutable poolTickSpacing;
 
     IERC20 public immutable usdc;
     IERC20 public immutable weth;
@@ -65,10 +65,12 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
 
     /// @param callbackProxy_ The Reactive callback proxy on this chain.
     /// @param referee_ The referee's RVM id (the reactive contract's address on Lasna).
-    constructor(IPayable callbackProxy_, address referee_, address usdc_, address weth_, address poolManager_)
+    constructor(IPayable callbackProxy_, address referee_, address usdc_, address weth_, address poolManager_, int24 tickSpacing_)
         payable
         AbstractCallback(callbackProxy_, referee_)
     {
+        if (tickSpacing_ <= 0) revert ZeroAmount();
+        poolTickSpacing = tickSpacing_;
         if (referee_ == address(0) || usdc_ == address(0) || weth_ == address(0) || poolManager_ == address(0)) {
             revert ZeroAddress();
         }
@@ -81,7 +83,7 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
             currency0: Currency.wrap(usdc_),
             currency1: Currency.wrap(weth_),
             fee: POOL_FEE,
-            tickSpacing: POOL_TICK_SPACING,
+            tickSpacing: tickSpacing_,
             hooks: IHooks(address(0))
         });
     }

@@ -431,15 +431,15 @@ contract BellReferee is AbstractReactive {
             Order storage o = orders[id];
             uint256 rem = o.isBuy ? pulled[id] - paidU[k] : pulled[id] - paidW[k];
             if (rem == 0) continue;
-            bool canSwap = o.chainId == chainB.chainId && rem >= (o.isBuy ? DUST_USDC : DUST_WETH);
+            bool canSwap = rem >= (o.isBuy ? DUST_USDC : DUST_WETH);
             if (canSwap) {
-                // The reference pool lives on chain B only, so only chain B remainders are sold into it.
+                // Each chain has its own USDC/WETH pool. Remainders are sold into the pool on the trader's chain.
                 _callback(o.chainId, o.desk, GAS_SWAP, o.isBuy
                     ? abi.encodeWithSignature("swapBuy(address,address,uint256)", address(0), o.trader, rem)
                     : abi.encodeWithSignature("swapSell(address,address,uint256)", address(0), o.trader, rem)
                 );
             } else {
-                // No pool on this chain, or dust: return the unspent amount to the trader.
+                // Dust: return the unspent amount to the trader.
                 _callback(o.chainId, o.desk, GAS_PULL_PAY, abi.encodeWithSignature(
                     "pay(address,uint256,address,bool,uint256)", address(0), o.deskOrderId, o.trader, o.isBuy, rem
                 ));
