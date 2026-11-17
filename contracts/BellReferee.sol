@@ -21,6 +21,9 @@ contract BellReferee is AbstractReactive {
     uint256 public constant DRIFT_BPS = 1000; // 10%
     uint256 public constant BPS = 10_000;
     uint256 public constant MAX_BOOK = 24;
+    uint256 public constant PULL_TIMEOUT = 300; // seconds a round may wait for its pull callbacks
+    uint256 public constant DUST_USDC = 10_000; // 0.01 USDC, below this a remainder is refunded, not swapped
+    uint256 public constant DUST_WETH = 1e12; // 1e-6 WETH, below this a remainder is refunded, not swapped
 
     /// @dev Lasna timer: Cron100 ticks about every two minutes.
     address public constant CRON_CONTRACT = 0x0000000000000000000000000000000000fffFfF;
@@ -31,6 +34,7 @@ contract BellReferee is AbstractReactive {
     bytes32 public constant T_COLLECTED = keccak256("Collected(uint256,address,uint256,bool)");
     bytes32 public constant T_TRANSFER = keccak256("Transfer(address,address,uint256)");
     bytes32 public constant T_SWAP = keccak256("Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)");
+    bytes32 public constant T_SWAPPED = keccak256("Swapped(address,bool,uint256,uint256,bool)");
 
     // ---------------------------------------------------------------- config
 
@@ -88,9 +92,12 @@ contract BellReferee is AbstractReactive {
     bool public pulling;
     uint256 public settlePrice;
 
+    uint256 public roundId;
+    uint256 public pullStartedAt;
     uint256[] internal eligible;
     Pair[] internal pairs;
-    mapping(uint256 => uint256) internal pulled; // book id => amount collected
+    mapping(uint256 => uint256) internal reportedRound; // book id => round whose pull it reported in
+    mapping(uint256 => uint256) internal pulled; // book id => amount collected this round
     mapping(uint256 => bool) internal pullOk;
     uint256 internal pendingPulls;
     bool internal anyPullFailed;
@@ -107,6 +114,8 @@ contract BellReferee is AbstractReactive {
     event Unwound(uint256 failedBookId);
     event Settled(uint256 price, uint256 pairCount);
     event Withdrawn(address indexed to, uint256 amount);
+    event Refunded(address indexed to, uint256 chainId, uint256 amount);
+    event PullsExpired(uint256 indexed roundId, uint256 missing);
 
     // ---------------------------------------------------------------- errors
 
@@ -143,6 +152,8 @@ contract BellReferee is AbstractReactive {
         SYSTEM.subscribe(c.chainB.chainId, c.chainB.desk, uint256(T_ORDER_PLACED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
         SYSTEM.subscribe(c.chainB.chainId, c.chainB.desk, uint256(T_COLLECTED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
         SYSTEM.subscribe(c.chainB.chainId, c.poolManagerB, uint256(T_SWAP), uint256(c.poolIdB), REACTIVE_IGNORE, REACTIVE_IGNORE);
+        SYSTEM.subscribe(c.chainA.chainId, c.chainA.desk, uint256(T_SWAPPED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        SYSTEM.subscribe(c.chainB.chainId, c.chainB.desk, uint256(T_SWAPPED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
         emit Configured(c.poolManagerB, c.poolIdB);
     }
 
@@ -169,6 +180,8 @@ contract BellReferee is AbstractReactive {
             _onCollected(log);
         } else if (t0 == T_SWAP) {
             _onSwap(log);
+        } else if (t0 == T_SWAPPED) {
+            _onSwapped(log);
         } else if (t0 == T_TRANSFER) {
             _onTransfer(log);
         }
@@ -238,8 +251,9 @@ contract BellReferee is AbstractReactive {
         if (log.contractAddress != c.desk || !pulling) return;
         uint256 id = bookIdOf[keccak256(abi.encode(log.chainId, log.topic1))];
         if (id == 0 || !orders[id].open) return;
+        if (reportedRound[id] == roundId) return; // duplicate event in this round
         (uint256 amount, bool ok) = abi.decode(log.data, (uint256, bool));
-        if (pullOk[id] || pulled[id] != 0) return; // duplicate event
+        reportedRound[id] = roundId;
         pulled[id] = amount;
         pullOk[id] = ok;
         if (!ok) anyPullFailed = true;
@@ -258,6 +272,40 @@ contract BellReferee is AbstractReactive {
         emit Observed(sqrtPriceX96, _price(sqrtPriceX96));
     }
 
+    /// @dev A desk swap that reports ok = false leaves the amount in the desk. Return it to the trader.
+    function _onSwapped(LogRecord calldata log) internal {
+        ChainConfig memory c = _chainFor(log.chainId);
+        if (log.contractAddress != c.desk) return;
+        address to = address(uint160(log.topic1));
+        (bool sellWeth, uint256 amountIn, , bool ok) = abi.decode(log.data, (bool, uint256, uint256, bool));
+        if (ok) return;
+        _callback(log.chainId, c.desk, GAS_PULL_PAY, abi.encodeWithSignature(
+            "pay(address,uint256,address,bool,uint256)", address(0), 0, to, !sellWeth, amountIn
+        ));
+        emit Refunded(to, log.chainId, amountIn);
+    }
+
+    /// @dev Some pull callback never reported. Count the missing ones as failed, then unwind or settle.
+    function _expirePulls() internal {
+        uint256 missing;
+        for (uint256 k = 0; k < eligible.length; k++) {
+            uint256 id = eligible[k];
+            if (reportedRound[id] != roundId) {
+                reportedRound[id] = roundId;
+                pulled[id] = 0;
+                pullOk[id] = false;
+                anyPullFailed = true;
+                pendingPulls--;
+                missing++;
+            }
+        }
+        emit PullsExpired(roundId, missing);
+        if (pendingPulls == 0) {
+            if (anyPullFailed) _unwind();
+            else _settle();
+        }
+    }
+
     // ---------------------------------------------------------------- bell
 
     function _bell() internal {
@@ -269,6 +317,10 @@ contract BellReferee is AbstractReactive {
             return;
         }
         if (pulling) {
+            if (block.timestamp >= pullStartedAt + PULL_TIMEOUT) {
+                _expirePulls();
+                return;
+            }
             emit BellVoid("previous round still settling");
             return;
         }
@@ -331,6 +383,8 @@ contract BellReferee is AbstractReactive {
 
         // Step 1: pull from every eligible trader. Buyers pull the full cost at p (rounded up).
         settlePrice = p;
+        roundId++;
+        pullStartedAt = block.timestamp;
         pulling = true;
         pendingPulls = eligible.length;
         anyPullFailed = false;
@@ -375,20 +429,21 @@ contract BellReferee is AbstractReactive {
         for (uint256 k = 0; k < eligible.length; k++) {
             uint256 id = eligible[k];
             Order storage o = orders[id];
-            if (o.isBuy) {
-                uint256 rem = pulled[id] - paidU[k];
-                if (rem > 0) {
-                    _callback(o.chainId, o.desk, GAS_SWAP, abi.encodeWithSignature(
-                        "swapBuy(address,address,uint256)", address(0), o.trader, rem
-                    ));
-                }
+            uint256 rem = o.isBuy ? pulled[id] - paidU[k] : pulled[id] - paidW[k];
+            if (rem == 0) continue;
+            bool canSwap = o.chainId == chainB.chainId && rem >= (o.isBuy ? DUST_USDC : DUST_WETH);
+            if (canSwap) {
+                // The reference pool lives on chain B only, so only chain B remainders are sold into it.
+                _callback(o.chainId, o.desk, GAS_SWAP, o.isBuy
+                    ? abi.encodeWithSignature("swapBuy(address,address,uint256)", address(0), o.trader, rem)
+                    : abi.encodeWithSignature("swapSell(address,address,uint256)", address(0), o.trader, rem)
+                );
             } else {
-                uint256 rem = pulled[id] - paidW[k];
-                if (rem > 0) {
-                    _callback(o.chainId, o.desk, GAS_SWAP, abi.encodeWithSignature(
-                        "swapSell(address,address,uint256)", address(0), o.trader, rem
-                    ));
-                }
+                // No pool on this chain, or dust: return the unspent amount to the trader.
+                _callback(o.chainId, o.desk, GAS_PULL_PAY, abi.encodeWithSignature(
+                    "pay(address,uint256,address,bool,uint256)", address(0), o.deskOrderId, o.trader, o.isBuy, rem
+                ));
+                emit Refunded(o.trader, o.chainId, rem);
             }
         }
 

@@ -339,17 +339,101 @@ describe("BellReferee", function () {
     expect((await referee.orders(2)).open).to.equal(false);
   });
 
-  it("fills an unmatched buyer at the chain A pool (buyer-side fallback)", async function () {
+  it("refunds an unmatched buyer on chain A, which has no reference pool", async function () {
     const A = chains.A;
     await observePrice();
     await place(A, buyer, true, LIMIT_HIGH, QTY); // no seller at all
 
-    const buyerWethA0 = await A.weth.balanceOf(buyer.address);
-    const r = await ring();
-    const deskB = (await chains.B.desk.getAddress()).toLowerCase();
-    expect(callbacks(r).every((c) => c.args.recipient.toLowerCase() !== deskB)).to.equal(true);
-    expect((await A.weth.balanceOf(buyer.address)) - buyerWethA0).to.be.greaterThan(0);
+    const buyerUsdcA0 = await A.usdc.balanceOf(buyer.address);
+    await ring();
+    const calls = trace.flatMap((t) => callbacks(t));
+    const swapSelectors = [
+      ethers.id("swapBuy(address,address,uint256)").slice(0, 10),
+      ethers.id("swapSell(address,address,uint256)").slice(0, 10),
+    ];
+    // No swap is requested on chain A. The pulled USDC comes back to the buyer in full.
+    expect(calls.some((c) => swapSelectors.includes(c.args.payload.slice(0, 10)))).to.equal(false);
+    expect(await A.usdc.balanceOf(buyer.address)).to.equal(buyerUsdcA0);
     expect((await referee.orders(1)).open).to.equal(false);
+  });
+
+  it("swaps an unmatched buyer on chain B at the reference pool (buyer-side fallback)", async function () {
+    const B = chains.B;
+    await B.usdc.mint(buyer.address, 10_000000n);
+    await B.usdc.connect(buyer).approve(await B.desk.getAddress(), ethers.MaxUint256);
+    await observePrice();
+    await place(B, buyer, true, LIMIT_HIGH, QTY); // no seller on chain B
+
+    const wethB0 = await B.weth.balanceOf(buyer.address);
+    await ring();
+    expect((await B.weth.balanceOf(buyer.address)) - wethB0).to.be.greaterThan(0);
+    expect((await referee.orders(1)).open).to.equal(false);
+  });
+
+  it("runs a later round cleanly after an earlier round unwound (no stale pull state)", async function () {
+    const A = chains.A;
+    const B = chains.B;
+    await observePrice();
+    await place(A, buyer, true, LIMIT_HIGH, QTY);
+    await B.weth.connect(seller).approve(await B.desk.getAddress(), 0);
+    await place(B, seller, false, LIMIT_LOW, QTY); // pull fails, round unwinds
+    await ring();
+    expect((await referee.orders(1)).open).to.equal(true);
+    expect((await referee.orders(2)).open).to.equal(false);
+
+    // A fresh seller with a real approval, then a second round with the carried buyer.
+    await B.weth.connect(seller).approve(await B.desk.getAddress(), ethers.MaxUint256);
+    const wethB0 = await B.weth.balanceOf(buyer.address);
+    await place(B, seller, false, LIMIT_LOW, QTY);
+    await ring();
+    expect(trace.flatMap((t) => refereeEvents(t, "Settled")).length).to.be.greaterThan(0);
+    expect((await B.weth.balanceOf(buyer.address)) - wethB0).to.be.greaterThanOrEqual(QTY);
+    expect((await referee.orders(1)).open).to.equal(false);
+  });
+
+  it("expires a round whose pull callback never arrives, and clears it", async function () {
+    const A = chains.A;
+    const B = chains.B;
+    await observePrice();
+    await place(A, buyer, true, LIMIT_HIGH, QTY);
+    await place(B, seller, false, LIMIT_LOW, QTY);
+
+    // Bell without relaying the desk callbacks: the pulls never report.
+    const cron = {
+      chainId: LASNA, contractAddress: CRON_CONTRACT, topic0: BigInt(CRON_TOPIC), topic1: 0n, topic2: 0n, topic3: 0n,
+      data: "0x", blockNumber: 0n, opCode: 0n, blockHash: 0n, txHash: 0n, logIndex: 0n,
+    };
+    await (await system.relay(refereeAddr, cron)).wait();
+    expect(await referee.pulling()).to.equal(true);
+
+    await network.provider.send("evm_increaseTime", [301]);
+    await network.provider.send("evm_mine");
+    const r = await ring();
+    expect(refereeEvents(r, "PullsExpired").length).to.equal(1);
+    expect(await referee.pulling()).to.equal(false);
+    expect((await referee.orders(1)).open).to.equal(false);
+    expect((await referee.orders(2)).open).to.equal(false);
+  });
+
+  it("refunds a trader when a desk swap reports ok = false", async function () {
+    const B = chains.B;
+    await B.usdc.mint(await B.desk.getAddress(), 2_000000n);
+    const usdcBefore = await B.usdc.balanceOf(buyer.address);
+    const deskB = await B.desk.getAddress();
+    const swappedTopic = ethers.id("Swapped(address,bool,uint256,uint256,bool)");
+    const data = ethers.AbiCoder.defaultAbiCoder().encode(
+      ["bool", "uint256", "uint256", "bool"],
+      [false, 1_000000n, 0n, false]
+    );
+    const fake = {
+      address: deskB,
+      topics: [swappedTopic, ethers.zeroPadValue(buyer.address, 32)],
+      data,
+      blockNumber: 1,
+      index: 0,
+    };
+    await feed({ logs: [fake] });
+    expect(await B.usdc.balanceOf(buyer.address)).to.equal(usdcBefore + 1_000000n);
   });
 
   it("settles a 2 buyer by 2 seller round, with pairs crossing chains", async function () {
