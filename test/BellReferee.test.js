@@ -415,6 +415,45 @@ describe("BellReferee", function () {
     expect((await referee.orders(2)).open).to.equal(false);
   });
 
+  it("refunds pulls whose desk events were lost, then freezes those orders", async function () {
+    const A = chains.A;
+    const B = chains.B;
+    await observePrice();
+    await place(A, buyer, true, LIMIT_HIGH, QTY);
+    await place(B, seller, false, LIMIT_LOW, QTY);
+    const buyerUsdcA0 = await A.usdc.balanceOf(buyer.address);
+    const sellerWethB0 = await B.weth.balanceOf(seller.address);
+
+    // Bell: the desks execute the pulls, but their events never reach the referee.
+    const cron = {
+      chainId: LASNA, contractAddress: CRON_CONTRACT, topic0: BigInt(CRON_TOPIC), topic1: 0n, topic2: 0n, topic3: 0n,
+      data: "0x", blockNumber: 0n, opCode: 0n, blockHash: 0n, txHash: 0n, logIndex: 0n,
+    };
+    const rr = await (await system.relay(refereeAddr, cron)).wait();
+    for (const c of callbacks(rr)) {
+      const payload = c.args.payload;
+      const data = payload.slice(0, 10) + ethers.zeroPadValue(refereeAddr, 32).slice(2) + payload.slice(74);
+      await (await proxy.sendTransaction({ to: c.args.recipient, data, gasLimit: 3_000_000 })).wait();
+    }
+    expect(await A.usdc.balanceOf(buyer.address)).to.be.lessThan(buyerUsdcA0);
+    expect(await referee.pulling()).to.equal(true);
+
+    // The round expires. The referee asks each desk to refund what it actually collected.
+    await network.provider.send("evm_increaseTime", [301]);
+    await network.provider.send("evm_mine");
+    await ring();
+    expect(await A.usdc.balanceOf(buyer.address)).to.equal(buyerUsdcA0);
+    expect(await B.weth.balanceOf(seller.address)).to.equal(sellerWethB0);
+    expect(await referee.pulling()).to.equal(false);
+    expect((await referee.orders(1)).open).to.equal(false);
+    expect((await referee.orders(2)).open).to.equal(false);
+
+    // A late pull for a frozen order cannot take funds again.
+    await expect(A.desk.connect(proxy).collect(refereeAddr, 1, buyer.address, true, 2_400000n))
+      .to.emit(A.desk, "Collected")
+      .withArgs(1, buyer.address, 2_400000n, false);
+  });
+
   it("refunds a trader when a desk swap reports ok = false", async function () {
     const B = chains.B;
     await B.usdc.mint(await B.desk.getAddress(), 2_000000n);

@@ -447,6 +447,14 @@ contract BellReferee is AbstractReactive {
             }
         }
 
+        // Close each order on its desk so a later refund cannot pay these funds twice.
+        for (uint256 k = 0; k < eligible.length; k++) {
+            Order storage o = orders[eligible[k]];
+            _callback(o.chainId, o.desk, GAS_PULL_PAY, abi.encodeWithSignature(
+                "closeOrder(address,uint256)", address(0), o.deskOrderId
+            ));
+        }
+
         emit Settled(p, pairs.length);
         _finishRound(false);
     }
@@ -457,10 +465,16 @@ contract BellReferee is AbstractReactive {
             uint256 id = eligible[k];
             Order storage o = orders[id];
             if (pullOk[id] && pulled[id] > 0) {
+                // The order stays in the book. The desk refunds what it collected and not yet closed.
                 _callback(o.chainId, o.desk, GAS_PULL_PAY, abi.encodeWithSignature(
-                    "pay(address,uint256,address,bool,uint256)", address(0), o.deskOrderId, o.trader, o.isBuy, pulled[id]
+                    "refundOrder(address,uint256,bool)", address(0), o.deskOrderId, false
                 ));
             } else {
+                // Failed, or the report never arrived. Freeze the order on the desk, so a late pull cannot
+                // strand funds. The desk refunds whatever it actually collected.
+                _callback(o.chainId, o.desk, GAS_PULL_PAY, abi.encodeWithSignature(
+                    "refundOrder(address,uint256,bool)", address(0), o.deskOrderId, true
+                ));
                 emit Unwound(id);
                 _drop(id, "pull failed");
             }

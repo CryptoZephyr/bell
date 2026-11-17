@@ -44,10 +44,18 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
     uint256 public nextOrderId = 1;
     mapping(uint256 => Order) public orders;
 
+    // Per-order accounting kept on the desk, so the referee can refund what a desk really collected
+    // even when the referee never heard about the pull (a lost event).
+    mapping(uint256 => uint256) public collectedOf; // total pulled for the order
+    mapping(uint256 => uint256) public closedOf; // amount already settled or refunded
+    mapping(uint256 => bool) public frozen; // no further pulls for this order
+
     event OrderPlaced(uint256 indexed orderId, address indexed trader, bool isBuy, uint256 price, uint256 qty);
     event Collected(uint256 indexed orderId, address indexed from, uint256 amount, bool ok);
     event Paid(uint256 indexed orderId, address indexed to, uint256 amount, bool ok);
     event Swapped(address indexed to, bool sellWeth, uint256 amountIn, uint256 amountOut, bool ok);
+    event Closed(uint256 indexed orderId, uint256 amount);
+    event Refunded(uint256 indexed orderId, address indexed to, uint256 amount, bool ok);
 
     error ZeroAddress();
     error ZeroAmount();
@@ -98,9 +106,43 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
         if (amount == 0) revert ZeroAmount();
         Order storage o = orders[orderId];
         if (o.trader != trader || o.isBuy != isBuy) revert OrderTraderMismatch();
+        if (frozen[orderId]) {
+            emit Collected(orderId, trader, amount, false);
+            return false;
+        }
         IERC20 token = isBuy ? usdc : weth;
         ok = _call(address(token), abi.encodeCall(IERC20.transferFrom, (trader, address(this), amount)));
+        if (ok) collectedOf[orderId] += amount;
         emit Collected(orderId, trader, amount, ok);
+    }
+
+    /// @notice Mark everything collected for this order as accounted for. The referee calls this after
+    ///         settling an order, so a later refund cannot pay the same funds twice.
+    function closeOrder(address rvmId, uint256 orderId)
+        external
+        onlyServiceProvider
+        onlyCallbackSender(rvmId)
+    {
+        closedOf[orderId] = collectedOf[orderId];
+        emit Closed(orderId, collectedOf[orderId]);
+    }
+
+    /// @notice Return what this desk collected for the order and not yet accounted for. With freeze = true
+    ///         the order can no longer be pulled, so a late callback cannot strand funds again.
+    function refundOrder(address rvmId, uint256 orderId, bool freeze)
+        external
+        onlyServiceProvider
+        onlyCallbackSender(rvmId)
+        returns (uint256 amount)
+    {
+        Order storage o = orders[orderId];
+        if (freeze) frozen[orderId] = true;
+        amount = collectedOf[orderId] - closedOf[orderId];
+        closedOf[orderId] = collectedOf[orderId];
+        if (amount == 0) return 0;
+        IERC20 token = o.isBuy ? usdc : weth;
+        bool ok = _call(address(token), abi.encodeCall(IERC20.transfer, (o.trader, amount)));
+        emit Refunded(orderId, o.trader, amount, ok);
     }
 
     /// @notice Send funds from the desk's pot to a counterparty on this chain.

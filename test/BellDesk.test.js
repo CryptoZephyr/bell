@@ -233,4 +233,42 @@ describe("BellDesk", function () {
       );
     });
   });
+
+  describe("per-order accounting", function () {
+    beforeEach(async function () {
+      await desk.connect(buyer).place(true, PRICE, QTY);
+      await usdc.connect(buyer).approve(await desk.getAddress(), ethers.MaxUint256);
+    });
+
+    it("refunds what was collected and not yet closed, exactly once", async function () {
+      const cost = 2_400000n;
+      const before = await usdc.balanceOf(buyer.address);
+      await desk.connect(proxy).collect(referee.address, 1, buyer.address, true, cost);
+      expect(await desk.collectedOf(1)).to.equal(cost);
+      await expect(desk.connect(proxy).refundOrder(referee.address, 1, false))
+        .to.emit(desk, "Refunded")
+        .withArgs(1, buyer.address, cost, true);
+      expect(await usdc.balanceOf(buyer.address)).to.equal(before);
+      await expect(desk.connect(proxy).refundOrder(referee.address, 1, false)).to.not.emit(desk, "Refunded");
+    });
+
+    it("closeOrder stops a later refund from paying funds that were already settled", async function () {
+      await desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 2_400000n);
+      await desk.connect(proxy).closeOrder(referee.address, 1);
+      await expect(desk.connect(proxy).refundOrder(referee.address, 1, false)).to.not.emit(desk, "Refunded");
+    });
+
+    it("freeze blocks a late pull, so funds cannot be stranded after a refund", async function () {
+      await desk.connect(proxy).refundOrder(referee.address, 1, true);
+      await expect(desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 2_400000n))
+        .to.emit(desk, "Collected")
+        .withArgs(1, buyer.address, 2_400000n, false);
+      expect(await desk.collectedOf(1)).to.equal(0);
+    });
+
+    it("only the callback proxy can call the accounting functions", async function () {
+      await expect(desk.connect(outsider).refundOrder(referee.address, 1, false)).to.be.revertedWithCustomError(desk, "NotAuthorized");
+      await expect(desk.connect(outsider).closeOrder(referee.address, 1)).to.be.revertedWithCustomError(desk, "NotAuthorized");
+    });
+  });
 });
