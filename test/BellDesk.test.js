@@ -66,9 +66,8 @@ describe("BellDesk", function () {
     );
 
     const Desk = await ethers.getContractFactory("BellDesk");
-    desk = await Desk.deploy(proxy.address, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress());
+    desk = await Desk.deploy(proxy.address, referee.address, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress());
     await desk.waitForDeployment();
-    await desk.setReferee(referee.address);
 
     await usdc.mint(buyer.address, 10_000_000000n);
     await weth.mint(seller.address, ethers.parseEther("1"));
@@ -79,29 +78,10 @@ describe("BellDesk", function () {
       const Desk = await ethers.getContractFactory("BellDesk");
       const u = await usdc.getAddress();
       const w = await weth.getAddress();
-      await expect(Desk.deploy(proxy.address, w, u, await pm.getAddress())).to.be.revertedWithCustomError(
+      await expect(Desk.deploy(proxy.address, referee.address, w, u, await pm.getAddress())).to.be.revertedWithCustomError(
         Desk,
         "CurrencyNotSorted"
       );
-    });
-  });
-
-  describe("setReferee", function () {
-    it("lets only the deployer set it, and only once", async function () {
-      const Desk = await ethers.getContractFactory("BellDesk");
-      const fresh = await Desk.deploy(proxy.address, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress());
-      await expect(fresh.connect(outsider).setReferee(referee.address)).to.be.revertedWithCustomError(
-        fresh,
-        "NotDeployer"
-      );
-      await fresh.setReferee(referee.address);
-      await expect(fresh.setReferee(outsider.address)).to.be.revertedWithCustomError(fresh, "RefereeAlreadySet");
-    });
-
-    it("rejects the zero address", async function () {
-      const Desk = await ethers.getContractFactory("BellDesk");
-      const fresh = await Desk.deploy(proxy.address, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress());
-      await expect(fresh.setReferee(ethers.ZeroAddress)).to.be.revertedWithCustomError(fresh, "ZeroAddress");
     });
   });
 
@@ -133,13 +113,13 @@ describe("BellDesk", function () {
     it("rejects callers other than the callback proxy", async function () {
       await expect(
         desk.connect(outsider).collect(referee.address, 1, buyer.address, true, 1n)
-      ).to.be.revertedWithCustomError(desk, "NotCallbackProxy");
+      ).to.be.revertedWithCustomError(desk, "NotAuthorized");
     });
 
     it("rejects a callback whose RVM id is not the referee", async function () {
       await expect(
         desk.connect(proxy).collect(outsider.address, 1, buyer.address, true, 1n)
-      ).to.be.revertedWithCustomError(desk, "NotReferee");
+      ).to.be.revertedWithCustomError(desk, "CallbackNotAuthorized");
     });
 
     it("pulls USDC from a buyer who approved the desk", async function () {
@@ -180,7 +160,7 @@ describe("BellDesk", function () {
     it("rejects callers other than the callback proxy", async function () {
       await expect(
         desk.connect(outsider).pay(referee.address, 1, seller.address, true, 1n)
-      ).to.be.revertedWithCustomError(desk, "NotCallbackProxy");
+      ).to.be.revertedWithCustomError(desk, "NotAuthorized");
     });
 
     it("pays a counterparty from the desk's pot", async function () {
@@ -240,10 +220,10 @@ describe("BellDesk", function () {
     it("rejects swap calls from anyone but the callback proxy", async function () {
       await expect(
         desk.connect(outsider).swapSell(referee.address, seller.address, 1n)
-      ).to.be.revertedWithCustomError(desk, "NotCallbackProxy");
+      ).to.be.revertedWithCustomError(desk, "NotAuthorized");
       await expect(
         desk.connect(outsider).swapBuy(referee.address, buyer.address, 1n)
-      ).to.be.revertedWithCustomError(desk, "NotCallbackProxy");
+      ).to.be.revertedWithCustomError(desk, "NotAuthorized");
     });
 
     it("rejects a direct unlockCallback from anyone but the pool manager", async function () {

@@ -1,31 +1,38 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity ^0.8.29;
 
-import {ISystemContract, LogRecord} from "../BellReferee.sol";
+import {IReactive} from "@reactive/src/interfaces/IReactive.sol";
+import {ISystemContract} from "@reactive/src/interfaces/ISystemContract.sol";
 
-interface IReferee {
-    function react(LogRecord calldata log) external;
+interface IReactiveReferee {
+    function react(IReactive.LogRecord calldata log) external;
 }
 
 /// @dev Local stand-in for the Reactive system contract, allowed by Memory.md for unit tests only.
-///      It records subscriptions and relays logs into react() the way the Reactive network would.
-contract MockSystem is ISystemContract {
-    event Subscribed(uint256 chain_id, address indexed _contract, uint256 topic_0, uint256 topic_1);
-    event Unsubscribed(uint256 chain_id, address indexed _contract, uint256 topic_0, uint256 topic_1);
+///      The tests place this code at the library's hard-coded system address (0x888...888).
+///      It records subscriptions and callback requests, and relays logs into react().
+contract MockSystem {
+    event Subscribed(uint256 chainId, address indexed contractAddress, uint256 topic0, uint256 topic1);
+    event Unsubscribed(uint256 chainId, address indexed contractAddress, uint256 topic0, uint256 topic1);
+    event CallbackRequested(uint256 chainId, address indexed recipient, uint64 gasLimit, bytes payload);
 
-    function subscribe(uint256 chain_id, address _contract, uint256 topic_0, uint256 topic_1, uint256, uint256)
+    function subscribe(uint256 chainId, address contractAddress, uint256 topic0, uint256 topic1, uint256, uint256)
         external
     {
-        emit Subscribed(chain_id, _contract, topic_0, topic_1);
+        emit Subscribed(chainId, contractAddress, topic0, topic1);
     }
 
-    function unsubscribe(uint256 chain_id, address _contract, uint256 topic_0, uint256 topic_1, uint256, uint256)
+    function unsubscribe(uint256 chainId, address contractAddress, uint256 topic0, uint256 topic1, uint256, uint256)
         external
     {
-        emit Unsubscribed(chain_id, _contract, topic_0, topic_1);
+        emit Unsubscribed(chainId, contractAddress, topic0, topic1);
     }
 
-    function relay(address referee, LogRecord calldata log) external {
-        IReferee(referee).react(log);
+    function requestCallbackV_1_0(ISystemContract.CallbackConfiguration_V_1_0 calldata config) external {
+        emit CallbackRequested(config.chainId, config.recipient, config.gasLimit, config.payload);
+    }
+
+    function relay(address referee, IReactive.LogRecord calldata log) external {
+        IReactiveReferee(referee).react(log);
     }
 }
