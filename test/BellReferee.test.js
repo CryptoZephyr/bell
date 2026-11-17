@@ -5,6 +5,7 @@ const { ethers } = require("hardhat");
 // The Reactive system contract is a stand-in (MockSystem), as Memory.md allows for unit tests.
 // Nothing here is deployed, demoed or claimed.
 
+const SYSTEM = "0x8888888888888888888888888888888888888888";
 const CHAIN_A = 84532n; // Base Sepolia (desk only, no reference pool)
 const CHAIN_B = 1301n; // Unichain Sepolia (desk plus reference pool)
 const LASNA = 5318007n;
@@ -34,18 +35,18 @@ async function deploySortedMocks(Mock) {
 function toRecord(lg, chainId) {
   const t = lg.topics;
   return {
-    chain_id: chainId,
-    _contract: lg.address,
-    topic_0: t[0] ? BigInt(t[0]) : 0n,
-    topic_1: t[1] ? BigInt(t[1]) : 0n,
-    topic_2: t[2] ? BigInt(t[2]) : 0n,
-    topic_3: t[3] ? BigInt(t[3]) : 0n,
+    chainId: chainId,
+    contractAddress: lg.address,
+    topic0: t[0] ? BigInt(t[0]) : 0n,
+    topic1: t[1] ? BigInt(t[1]) : 0n,
+    topic2: t[2] ? BigInt(t[2]) : 0n,
+    topic3: t[3] ? BigInt(t[3]) : 0n,
     data: lg.data,
-    block_number: BigInt(lg.blockNumber),
-    op_code: 0n,
-    block_hash: 0n,
-    tx_hash: 0n,
-    log_index: BigInt(lg.index),
+    blockNumber: BigInt(lg.blockNumber),
+    opCode: 0n,
+    blockHash: 0n,
+    txHash: 0n,
+    logIndex: BigInt(lg.index),
   };
 }
 
@@ -83,7 +84,7 @@ describe("BellReferee", function () {
     );
 
     const Desk = await ethers.getContractFactory("BellDesk");
-    const desk = await Desk.deploy(proxy.address, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress());
+    const desk = await Desk.deploy(proxy.address, refereeAddr, await usdc.getAddress(), await weth.getAddress(), await pm.getAddress());
     await desk.waitForDeployment();
 
     const poolId = ethers.keccak256(
@@ -116,28 +117,30 @@ describe("BellReferee", function () {
     [deployer, proxy, buyer, seller, outsider, lp] = await ethers.getSigners();
     chainOf = new Map();
 
+    // Put the system stand-in at the library's hard-coded system address.
     const MockSystem = await ethers.getContractFactory("MockSystem");
-    system = await MockSystem.deploy();
-    await system.waitForDeployment();
+    const stand = await MockSystem.deploy();
+    await stand.waitForDeployment();
+    const code = await ethers.provider.getCode(await stand.getAddress());
+    await network.provider.send("hardhat_setCode", [SYSTEM, code]);
+    system = await ethers.getContractAt("MockSystem", SYSTEM);
+
+    const Referee = await ethers.getContractFactory("BellReferee");
+    referee = await Referee.deploy();
+    await referee.waitForDeployment();
+    refereeAddr = await referee.getAddress();
 
     chains = {
       A: await makeChain(CHAIN_A),
       B: await makeChain(CHAIN_B),
     };
 
-    const Referee = await ethers.getContractFactory("BellReferee");
-    referee = await Referee.deploy({
-      system: await system.getAddress(),
+    await referee.configure({
       chainA: chains.A.cfg,
       chainB: chains.B.cfg,
       poolManagerB: await chains.B.pm.getAddress(),
       poolIdB: chains.B.poolId,
     });
-    await referee.waitForDeployment();
-    refereeAddr = await referee.getAddress();
-
-    await chains.A.desk.setReferee(refereeAddr);
-    await chains.B.desk.setReferee(refereeAddr);
 
     // Buyer on A holds USDC. Seller on B holds WETH. Both approve their desk.
     const A = chains.A;
@@ -168,17 +171,17 @@ describe("BellReferee", function () {
   // replacing the first payload argument with the referee's RVM id, then feeds the results back.
   async function drain(receipt) {
     for (const lg of receipt.logs) {
-      if (lg.address.toLowerCase() !== refereeAddr.toLowerCase()) continue;
+      if (lg.address.toLowerCase() !== SYSTEM.toLowerCase()) continue;
       let parsed;
       try {
-        parsed = referee.interface.parseLog(lg);
+        parsed = system.interface.parseLog(lg);
       } catch {
         continue;
       }
-      if (!parsed || parsed.name !== "Callback") continue;
+      if (!parsed || parsed.name !== "CallbackRequested") continue;
       const payload = parsed.args.payload;
       const data = payload.slice(0, 10) + ethers.zeroPadValue(refereeAddr, 32).slice(2) + payload.slice(74);
-      const tx = await proxy.sendTransaction({ to: parsed.args._contract, data, gasLimit: 3_000_000 });
+      const tx = await proxy.sendTransaction({ to: parsed.args.recipient, data, gasLimit: 3_000_000 });
       const r = await tx.wait();
       trace.push(r);
       if (r.status !== 1) throw new Error("desk callback reverted");
@@ -188,18 +191,18 @@ describe("BellReferee", function () {
 
   async function ring() {
     const cron = {
-      chain_id: LASNA,
-      _contract: CRON_CONTRACT,
-      topic_0: BigInt(CRON_TOPIC),
-      topic_1: 0n,
-      topic_2: 0n,
-      topic_3: 0n,
+      chainId: LASNA,
+      contractAddress: CRON_CONTRACT,
+      topic0: BigInt(CRON_TOPIC),
+      topic1: 0n,
+      topic2: 0n,
+      topic3: 0n,
       data: "0x",
-      block_number: 0n,
-      op_code: 0n,
-      block_hash: 0n,
-      tx_hash: 0n,
-      log_index: 0n,
+      blockNumber: 0n,
+      opCode: 0n,
+      blockHash: 0n,
+      txHash: 0n,
+      logIndex: 0n,
     };
     trace = [];
     const r = await (await system.relay(refereeAddr, cron)).wait();
@@ -221,7 +224,15 @@ describe("BellReferee", function () {
   }
 
   function callbacks(receipt) {
-    return refereeEvents(receipt, "Callback");
+    const out = [];
+    for (const lg of receipt.logs) {
+      if (lg.address.toLowerCase() !== SYSTEM.toLowerCase()) continue;
+      try {
+        const p = system.interface.parseLog(lg);
+        if (p && p.name === "CallbackRequested") out.push(p);
+      } catch {}
+    }
+    return out;
   }
 
   // A small pool swap, so the referee hears a reference price.
@@ -240,8 +251,8 @@ describe("BellReferee", function () {
   // ---------------------------------------------------------------- tests
 
   it("rejects react() from anyone but the system contract", async function () {
-    const rec = { chain_id: LASNA, _contract: CRON_CONTRACT, topic_0: BigInt(CRON_TOPIC), topic_1: 0n, topic_2: 0n, topic_3: 0n, data: "0x", block_number: 0n, op_code: 0n, block_hash: 0n, tx_hash: 0n, log_index: 0n };
-    await expect(referee.connect(outsider).react(rec)).to.be.revertedWithCustomError(referee, "NotSystem");
+    const rec = { chainId: LASNA, contractAddress: CRON_CONTRACT, topic0: BigInt(CRON_TOPIC), topic1: 0n, topic2: 0n, topic3: 0n, data: "0x", blockNumber: 0n, opCode: 0n, blockHash: 0n, txHash: 0n, logIndex: 0n };
+    await expect(referee.connect(outsider).react(rec)).to.be.revertedWithCustomError(referee, "NotAuthorized");
   });
 
   it("settles a full cross-chain round at the pool price", async function () {
@@ -302,7 +313,7 @@ describe("BellReferee", function () {
 
     // Only the seller is pulled. Their WETH is then sold into the chain B pool.
     const deskB = (await B.desk.getAddress()).toLowerCase();
-    const targets = callbacks(r).map((c) => c.args._contract.toLowerCase());
+    const targets = callbacks(r).map((c) => c.args.recipient.toLowerCase());
     expect(targets.length).to.be.greaterThan(0);
     expect(targets.every((t) => t === deskB)).to.equal(true);
     expect((await referee.orders(1)).open).to.equal(true);
@@ -336,7 +347,7 @@ describe("BellReferee", function () {
     const buyerWethA0 = await A.weth.balanceOf(buyer.address);
     const r = await ring();
     const deskB = (await chains.B.desk.getAddress()).toLowerCase();
-    expect(callbacks(r).every((c) => c.args._contract.toLowerCase() !== deskB)).to.equal(true);
+    expect(callbacks(r).every((c) => c.args.recipient.toLowerCase() !== deskB)).to.equal(true);
     expect((await A.weth.balanceOf(buyer.address)) - buyerWethA0).to.be.greaterThan(0);
     expect((await referee.orders(1)).open).to.equal(false);
   });

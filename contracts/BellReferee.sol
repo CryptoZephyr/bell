@@ -1,42 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity ^0.8.29;
 
-/// @dev Reactive system contract interface (subscriptions). Verify against reactive-lib-omni before deploy.
-interface ISystemContract {
-    function subscribe(
-        uint256 chain_id,
-        address _contract,
-        uint256 topic_0,
-        uint256 topic_1,
-        uint256 topic_2,
-        uint256 topic_3
-    ) external;
-
-    function unsubscribe(
-        uint256 chain_id,
-        address _contract,
-        uint256 topic_0,
-        uint256 topic_1,
-        uint256 topic_2,
-        uint256 topic_3
-    ) external;
-}
-
-/// @dev Log record delivered to react(). Verify field order against reactive-lib-omni before deploy.
-struct LogRecord {
-    uint256 chain_id;
-    address _contract;
-    uint256 topic_0;
-    uint256 topic_1;
-    uint256 topic_2;
-    uint256 topic_3;
-    bytes data;
-    uint256 block_number;
-    uint256 op_code;
-    uint256 block_hash;
-    uint256 tx_hash;
-    uint256 log_index;
-}
+import {AbstractReactive} from "@reactive/src/base/AbstractReactive.sol";
+import {IReactive} from "@reactive/src/interfaces/IReactive.sol";
+import {ISystemContract} from "@reactive/src/interfaces/ISystemContract.sol";
 
 /// @title BellReferee
 /// @notice The single Reactive contract on Lasna. It keeps one book across both desks,
@@ -44,7 +11,9 @@ struct LogRecord {
 ///         and runs two-step settlement through desk callbacks.
 /// @dev Guard: round-drift guard. Skip the round if the reference price at the bell differs
 ///      from the price when the round opened by more than DRIFT_BPS.
-contract BellReferee {
+///      Deploy order: this contract first (no arguments), then the desks with this address
+///      as their callback sender, then configure() once with the desk addresses.
+contract BellReferee is AbstractReactive {
     // ---------------------------------------------------------------- constants
 
     uint64 public constant GAS_PULL_PAY = 400_000;
@@ -72,12 +41,19 @@ contract BellReferee {
         address weth;
     }
 
-    ISystemContract public immutable system;
+    struct Config {
+        ChainConfig chainA; // Base Sepolia
+        ChainConfig chainB; // Unichain Sepolia, hosts the reference pool
+        address poolManagerB;
+        bytes32 poolIdB;
+    }
+
     address public immutable deployer;
-    ChainConfig public chainA; // Base Sepolia
-    ChainConfig public chainB; // Unichain Sepolia, hosts the reference pool
-    address public immutable poolManagerB;
-    bytes32 public immutable poolIdB;
+    bool public configured;
+    ChainConfig public chainA;
+    ChainConfig public chainB;
+    address public poolManagerB;
+    bytes32 public poolIdB;
 
     // ---------------------------------------------------------------- book
 
@@ -121,9 +97,7 @@ contract BellReferee {
 
     // ---------------------------------------------------------------- events
 
-    /// @dev Reactive callback event. The proxy replaces the first payload argument with this contract's RVM id.
-    event Callback(uint256 indexed chain_id, address indexed _contract, uint64 indexed gas_limit, bytes payload);
-
+    event Configured(address indexed poolManagerB, bytes32 poolIdB);
     event OrderAdded(uint256 indexed bookId, uint256 chainId, uint256 deskOrderId, address trader, bool isBuy);
     event OrderDropped(uint256 indexed bookId, string reason);
     event Observed(uint160 sqrtPriceX96, uint256 price);
@@ -136,8 +110,9 @@ contract BellReferee {
 
     // ---------------------------------------------------------------- errors
 
-    error NotSystem();
     error NotDeployer();
+    error AlreadyConfigured();
+    error NotConfigured();
     error ZeroAddress();
     error UnknownChain();
     error BadPrice();
@@ -145,38 +120,30 @@ contract BellReferee {
 
     // ---------------------------------------------------------------- setup
 
-    struct Config {
-        address system;
-        ChainConfig chainA;
-        ChainConfig chainB;
-        address poolManagerB;
-        bytes32 poolIdB;
+    constructor() payable {
+        deployer = msg.sender;
     }
 
-    constructor(Config memory c) {
-        if (c.system == address(0) || c.chainA.desk == address(0) || c.chainB.desk == address(0)) {
+    /// @notice Deployer-only, once. Stores the desks and subscribes to their events and the reference pool.
+    function configure(Config calldata c) external {
+        if (msg.sender != deployer) revert NotDeployer();
+        if (configured) revert AlreadyConfigured();
+        if (c.chainA.desk == address(0) || c.chainB.desk == address(0) || c.poolManagerB == address(0)) {
             revert ZeroAddress();
         }
-        system = ISystemContract(c.system);
-        deployer = msg.sender;
+        configured = true;
         chainA = c.chainA;
         chainB = c.chainB;
         poolManagerB = c.poolManagerB;
         poolIdB = c.poolIdB;
 
         // Desk events on both chains, and reference pool swaps on chain B.
-        system.subscribe(c.chainA.chainId, c.chainA.desk, uint256(T_ORDER_PLACED), 0, 0, 0);
-        system.subscribe(c.chainA.chainId, c.chainA.desk, uint256(T_COLLECTED), 0, 0, 0);
-        system.subscribe(c.chainB.chainId, c.chainB.desk, uint256(T_ORDER_PLACED), 0, 0, 0);
-        system.subscribe(c.chainB.chainId, c.chainB.desk, uint256(T_COLLECTED), 0, 0, 0);
-        system.subscribe(c.chainB.chainId, c.poolManagerB, uint256(T_SWAP), uint256(c.poolIdB), 0, 0);
-    }
-
-    receive() external payable {}
-
-    modifier onlySystem() {
-        if (msg.sender != address(system)) revert NotSystem();
-        _;
+        SYSTEM.subscribe(c.chainA.chainId, c.chainA.desk, uint256(T_ORDER_PLACED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        SYSTEM.subscribe(c.chainA.chainId, c.chainA.desk, uint256(T_COLLECTED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        SYSTEM.subscribe(c.chainB.chainId, c.chainB.desk, uint256(T_ORDER_PLACED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        SYSTEM.subscribe(c.chainB.chainId, c.chainB.desk, uint256(T_COLLECTED), REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        SYSTEM.subscribe(c.chainB.chainId, c.poolManagerB, uint256(T_SWAP), uint256(c.poolIdB), REACTIVE_IGNORE, REACTIVE_IGNORE);
+        emit Configured(c.poolManagerB, c.poolIdB);
     }
 
     /// @notice Deployer withdraws leftover REACT.
@@ -191,11 +158,11 @@ contract BellReferee {
     // ---------------------------------------------------------------- reactive entry point
 
     function react(LogRecord calldata log) external onlySystem {
-        if (log._contract == CRON_CONTRACT && log.topic_0 == CRON_TOPIC) {
+        if (log.contractAddress == CRON_CONTRACT && log.topic0 == CRON_TOPIC) {
             _bell();
             return;
         }
-        bytes32 t0 = bytes32(log.topic_0);
+        bytes32 t0 = bytes32(log.topic0);
         if (t0 == T_ORDER_PLACED) {
             _onOrderPlaced(log);
         } else if (t0 == T_COLLECTED) {
@@ -210,11 +177,11 @@ contract BellReferee {
     // ---------------------------------------------------------------- book
 
     function _onOrderPlaced(LogRecord calldata log) internal {
-        ChainConfig memory c = _chainFor(log.chain_id);
-        if (log._contract != c.desk) return;
+        ChainConfig memory c = _chainFor(log.chainId);
+        if (log.contractAddress != c.desk) return;
         (bool isBuy, uint256 limit, uint256 qty) = abi.decode(log.data, (bool, uint256, uint256));
-        uint256 deskOrderId = log.topic_1;
-        address trader = address(uint160(log.topic_2));
+        uint256 deskOrderId = log.topic1;
+        address trader = address(uint160(log.topic2));
 
         if (openIds.length >= MAX_BOOK) {
             emit OrderDropped(0, "book full");
@@ -225,14 +192,14 @@ contract BellReferee {
             openPrice = haveObservation ? _price(lastSqrtPriceX96) : 0;
             emit RoundOpened(openPrice);
             if (!cronOn) {
-                system.subscribe(LASNA_CHAIN_ID, CRON_CONTRACT, CRON_TOPIC, 0, 0, 0);
+                SYSTEM.subscribe(LASNA_CHAIN_ID, CRON_CONTRACT, CRON_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
                 cronOn = true;
             }
         }
 
         uint256 id = nextBookId++;
         orders[id] = Order({
-            chainId: log.chain_id,
+            chainId: log.chainId,
             desk: c.desk,
             deskOrderId: deskOrderId,
             trader: trader,
@@ -241,25 +208,24 @@ contract BellReferee {
             qty: qty,
             open: true
         });
-        bookIdOf[keccak256(abi.encode(log.chain_id, deskOrderId))] = id;
+        bookIdOf[keccak256(abi.encode(log.chainId, deskOrderId))] = id;
         openIds.push(id);
 
         // Funding watch: hear the trader's token transfers while the order is open.
-        address token = isBuy ? c.usdc : c.weth;
-        system.subscribe(log.chain_id, token, uint256(T_TRANSFER), uint256(uint160(trader)), 0, 0);
-        emit OrderAdded(id, log.chain_id, deskOrderId, trader, isBuy);
+        _subscribeTransfer(log.chainId, isBuy ? c.usdc : c.weth, trader);
+        emit OrderAdded(id, log.chainId, deskOrderId, trader, isBuy);
     }
 
     function _onTransfer(LogRecord calldata log) internal {
         if (pulling) return; // our own pulls show up as transfers during settlement
-        address from = address(uint160(log.topic_1));
-        ChainConfig memory c = _chainFor(log.chain_id);
+        address from = address(uint160(log.topic1));
+        ChainConfig memory c = _chainFor(log.chainId);
         uint256 k = 0;
         while (k < openIds.length) {
             uint256 id = openIds[k];
             Order storage o = orders[id];
             address token = o.isBuy ? c.usdc : c.weth;
-            if (o.chainId == log.chain_id && o.trader == from && log._contract == token) {
+            if (o.chainId == log.chainId && o.trader == from && log.contractAddress == token) {
                 _drop(id, "funds moved"); // shifts openIds, so do not advance k
             } else {
                 k++;
@@ -268,9 +234,9 @@ contract BellReferee {
     }
 
     function _onCollected(LogRecord calldata log) internal {
-        ChainConfig memory c = _chainFor(log.chain_id);
-        if (log._contract != c.desk || !pulling) return;
-        uint256 id = bookIdOf[keccak256(abi.encode(log.chain_id, log.topic_1))];
+        ChainConfig memory c = _chainFor(log.chainId);
+        if (log.contractAddress != c.desk || !pulling) return;
+        uint256 id = bookIdOf[keccak256(abi.encode(log.chainId, log.topic1))];
         if (id == 0 || !orders[id].open) return;
         (uint256 amount, bool ok) = abi.decode(log.data, (uint256, bool));
         if (pullOk[id] || pulled[id] != 0) return; // duplicate event
@@ -285,7 +251,7 @@ contract BellReferee {
     }
 
     function _onSwap(LogRecord calldata log) internal {
-        if (log._contract != poolManagerB || log.topic_1 != uint256(poolIdB)) return;
+        if (log.contractAddress != poolManagerB || log.topic1 != uint256(poolIdB)) return;
         (, , uint160 sqrtPriceX96, , , ) = abi.decode(log.data, (int128, int128, uint160, uint128, int24, uint24));
         haveObservation = true;
         lastSqrtPriceX96 = sqrtPriceX96;
@@ -297,7 +263,7 @@ contract BellReferee {
     function _bell() internal {
         if (openIds.length == 0) {
             if (cronOn) {
-                system.unsubscribe(LASNA_CHAIN_ID, CRON_CONTRACT, CRON_TOPIC, 0, 0, 0);
+                SYSTEM.unsubscribe(LASNA_CHAIN_ID, CRON_CONTRACT, CRON_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
                 cronOn = false;
             }
             return;
@@ -462,7 +428,7 @@ contract BellReferee {
         if (openIds.length == 0) {
             openPrice = 0;
             if (cronOn) {
-                system.unsubscribe(LASNA_CHAIN_ID, CRON_CONTRACT, CRON_TOPIC, 0, 0, 0);
+                SYSTEM.unsubscribe(LASNA_CHAIN_ID, CRON_CONTRACT, CRON_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
                 cronOn = false;
             }
         }
@@ -475,8 +441,7 @@ contract BellReferee {
         if (!o.open) return;
         o.open = false;
         ChainConfig memory c = _chainFor(o.chainId);
-        address token = o.isBuy ? c.usdc : c.weth;
-        system.unsubscribe(o.chainId, token, uint256(T_TRANSFER), uint256(uint160(o.trader)), 0, 0);
+        _unsubscribeTransfer(o.chainId, o.isBuy ? c.usdc : c.weth, o.trader);
         bookIdOf[keccak256(abi.encode(o.chainId, o.deskOrderId))] = 0;
         for (uint256 k = 0; k < openIds.length; k++) {
             if (openIds[k] == id) {
@@ -488,6 +453,15 @@ contract BellReferee {
         emit OrderDropped(id, reason);
     }
 
+    /// @dev Subscribe and unsubscribe share one helper per topic set, so the arguments always match.
+    function _subscribeTransfer(uint256 chainId, address token, address trader) internal {
+        SYSTEM.subscribe(chainId, token, uint256(T_TRANSFER), uint256(uint160(trader)), REACTIVE_IGNORE, REACTIVE_IGNORE);
+    }
+
+    function _unsubscribeTransfer(uint256 chainId, address token, address trader) internal {
+        SYSTEM.unsubscribe(chainId, token, uint256(T_TRANSFER), uint256(uint160(trader)), REACTIVE_IGNORE, REACTIVE_IGNORE);
+    }
+
     function _indexOf(uint256 id) internal view returns (uint256) {
         for (uint256 k = 0; k < eligible.length; k++) {
             if (eligible[k] == id) return k;
@@ -496,10 +470,13 @@ contract BellReferee {
     }
 
     function _callback(uint256 chainId, address target, uint64 gasLimit, bytes memory payload) internal {
-        emit Callback(chainId, target, gasLimit, payload);
+        SYSTEM.requestCallbackV_1_0(
+            ISystemContract.CallbackConfiguration_V_1_0({chainId: chainId, recipient: target, gasLimit: gasLimit, payload: payload})
+        );
     }
 
     function _chainFor(uint256 chainId) internal view returns (ChainConfig memory) {
+        if (!configured) revert NotConfigured();
         if (chainId == chainA.chainId) return chainA;
         if (chainId == chainB.chainId) return chainB;
         revert UnknownChain();

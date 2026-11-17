@@ -11,7 +11,16 @@ module.exports = {
     // Uniswap v4 uses transient storage, so Cancun is required.
     compilers: [
       {
+        // Uniswap v4 core pins 0.8.26.
         version: "0.8.26",
+        settings: {
+          evmVersion: "cancun",
+          optimizer: { enabled: true, runs: 200 },
+        },
+      },
+      {
+        // reactive-lib-omni requires ^0.8.29.
+        version: "0.8.29",
         settings: {
           evmVersion: "cancun",
           optimizer: { enabled: true, runs: 200 },
