@@ -30,3 +30,7 @@ Gas, local table with a stand-in system contract, worst case with the most pairs
 Earlier evidence (gates 10 to 14 on v2 and v3, failure cases on v4) is kept in the project's test notes.
 
 Demo run latency (block timestamps, good to about 2 s because the chain clocks differ): run 1 first pull 1 s, last payout 5 s. Runs 2 and 3 first pull 2 s, last payout 6 s. In run 1 the Base pool filled the leftover at about 820 per ETH because earlier buyer leftovers had pushed our thin pool up. The pool was re-aligned to the reference before runs 2 and 3, which filled at about 799. Measured with `scripts/latency-v5.js`.
+
+## Contract hardening (v6, 18 Nov 2026)
+
+See `docs/SECURITY_REVIEW.md`. Live checks on the final set (referee `0x83546642aCC2B2419812367A90f537d68aabC857`): a third order from one wallet was dropped as "too many open orders" (tx `0x075662c3ee4e2fde78d70cc8bb5ec59c94b417fe107f5420659d624d047c6fa7`), a normal round settled with the two parked orders left alone (bell `0x5aec54115b6d96498c9b943725966e6fc7f26a54d9ce803b782d39baebd34a8d`, settle `0x4e47bbc29fabee76c706402706a0b137d258a503b2009c5f60f49b4dd0de4b89`, first pull 2 s, last payout 6 s), and the two parked orders were dropped as "expired" after the 15 minute lifetime (tx `0xff804aec39d1045f3c53909097c7cd5654b7c16148cae81963bbfca9be66a4ff`, order age 1005 s at that bell and 898 s at the one before). An unfunded order and a dust order both reverted at the desk (`NotFunded`, `OrderTooSmall`) and cost the referee no reserves.
