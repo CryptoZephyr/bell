@@ -22,8 +22,8 @@ for (const l of await lasna.getLogs({ address: rec.referee, fromBlock: lh - Math
 }
 for (const [id, n] of Object.entries(nets)) {
   const head = Math.min(await n.state.getBlockNumber(), await n.logs.getBlockNumber());
-  const bt = id === "84532" ? 2 : 1;
-  const from = head - Math.ceil((Date.now() / 1000 - since) / bt) - 50;
+  const hb = await n.state.getBlock(head - 300); const hh = await n.state.getBlock(head); const bt = Math.max(0.15, Number(hh.timestamp - hb.timestamp) / 300);
+  const from = Math.max(0, head - Math.ceil((Date.now() / 1000 - since) / bt) - 100);
   for (let f = from; f <= head; f += n.span) {
     for (const l of await n.logs.getLogs({ address: n.d.desk, fromBlock: f, toBlock: Math.min(head, f + n.span - 1) })) {
       try { const e = deskI.parseLog(l); const ts = (await retry(() => n.state.getBlock(l.blockNumber))).timestamp; ev.push({ chain: id === "84532" ? "base" : "uni", name: e.name, args: e.args.toArray().map(fmt).join(","), block: l.blockNumber, ts, tx: l.transactionHash }); } catch {}

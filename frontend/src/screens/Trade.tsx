@@ -149,9 +149,10 @@ export function Trade() {
       case "join": return (
         <Button
           hold
-          label={working ? op.label : op.state === "success" ? "Order placed" : "Hold to join the bell"}
+          label={working ? op.label : op.state === "success" && op.doneLabel === "Order placed" ? "Order placed" : "Hold to join the bell"}
           glyph={<Mark height={24} tone="current" gap={0} />}
-          state={op.state}
+          // The success left over from approving or wrapping belongs to that step, never to placing an order.
+          state={op.state === "success" && op.doneLabel !== "Order placed" ? "idle" : op.state}
           progress={op.progress}
           onHoldComplete={doJoin}
           onKeyboardActivate={() => setConfirm(true)}

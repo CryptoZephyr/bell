@@ -128,7 +128,7 @@ while (Date.now() < deadline) {
   if (Date.now() > deadline) break;
   await observer.waitForTimeout(700);
 }
-await observer.waitForTimeout(2500);
+for (let i = 0; i < 16; i++) { const snap = (await observer.locator(".bell-card").first().innerText().catch(() => "")).replace(/\s+/g, " ").trim(); if (snap && snap !== lastObs) { obsLog.push({ t: Date.now(), text: snap.slice(0, 160) }); lastObs = snap; } await observer.waitForTimeout(700); }
 for (const p of people) await p.page.screenshot({ path: `${out}/${p.who}-activity.png`, fullPage: true });
 await observer.screenshot({ path: `${out}/observer-bell.png`, fullPage: true });
 
