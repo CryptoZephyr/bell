@@ -12,6 +12,7 @@ Testnet only. Built for the Reactive Omni Buildathon, track Every Second Counts.
 4. Orders whose own limit allows that price are matched first in, first out. The referee pulls each trader's funds into their desk, then pays each matched trader on the other side's chain.
 5. Whatever is left unmatched goes into the Uniswap v4 pool on the trader's own chain, stopped at the trader's limit. The part the pool can't fill inside the limit goes straight back.
 6. If a pull fails, only that order drops. Everyone else settles in the same round. A trader can cancel until the desk pulls their funds.
+7. The desk refuses an order the trader can't pay for right now, and the book keeps at most 2 open orders per wallet and drops an order after 30 minutes.
 
 A round-drift guard skips a round if the reference price moves more than 10% inside one bell window. Orders carry to the next bell.
 
@@ -19,13 +20,13 @@ A round-drift guard skips a round if the reference price moves more than 10% ins
 
 | Contract | Chain | Address |
 | --- | --- | --- |
-| BellReferee | Reactive Lasna (5318007) | `0x5269Affe9288ab7a2E7B14Aed4E0D4D1fBE396F2` |
-| BellDesk | Base Sepolia (84532) | `0x6ca550AB0aE6b2299350049F38cbDAE2767cb43E` |
-| BellDesk | Unichain Sepolia (1301) | `0x7B1e4FA115838EfE6D339D19CCFd2b14df8c0Eb1` |
+| BellReferee | Reactive Lasna (5318007) | `0xE0e7ee9D6aC8b05Beb2fC76c7459B00c2869C19c` |
+| BellDesk | Base Sepolia (84532) | `0xE2db2CE531Ba083A608c0c368CCF97461C522864` |
+| BellDesk | Unichain Sepolia (1301) | `0x6669a7EC40E9A6688b7C0c0c8147c4b6a59cE2F4` |
 
 The reference pool is the Uniswap v4 USDC/WETH 0.05% pool on Unichain Sepolia, pool id `0x71fba4ef34765b317417131bb7cef92bd4c43405babf9386cacdd10cf8641422`. The pools on both chains carry liquidity of our own for testing, recorded in `deployments/pools.json`. It is test liquidity on real Uniswap v4 pools. It is not market depth.
 
-Earlier deployments are kept in `deployments/bell-v1.json` to `deployments/bell-v4.json` and `deployments/bell-v5-rc1.json`. The current record is `deployments/bell.json` (v5).
+Earlier deployments are kept in `deployments/bell-v1.json` to `deployments/bell-v4.json` and `deployments/bell-v5-rc1.json` and `deployments/bell-v5.json`. The current record is `deployments/bell.json` (v6, the hardened v5).
 
 ## Run it
 
@@ -60,6 +61,7 @@ The referee runs on reserves held by the Reactive system contract. Keep at least
 
 ## Limits, stated plainly
 
+- Anyone can place orders, and every accepted order costs the referee a small amount of REACT. The desk now rejects unfunded and dust orders before they cost anything, but a funded wallet can still place and cancel in a loop. A mainnet version needs a fee or bond per order. See `docs/SECURITY_REVIEW.md`.
 - Testnet only. No audit.
 - The reference price is one pool's last swap. On a thin test pool it is cheap to move. The traders' own limits and the drift guard bound the damage, they don't remove the risk.
 - The book holds at most 6 orders. A live 8-order round needed 717,911 gas to settle against the 900k reaction cap, so the cap is set below that with headroom.
