@@ -43,7 +43,7 @@ export function States() {
         </div>
       </section>
       <section className="stack" aria-labelledby="s-tick"><h2 id="s-tick">Order tickets</h2>
-        <ul className="stack ticket-list">{TICKETS.map(([n, o]) => <li key={n}><OrderTicket o={o} /></li>)}</ul>
+        <ul className="stack ticket-list">{TICKETS.map(([n, o]) => <li key={n}><OrderTicket o={o} /></li>)}<li key="paused"><OrderTicket o={{ ...base, outcome: "rejected" }} paused /></li></ul>
       </section>
       <section className="stack" aria-labelledby="s-misc"><h2 id="s-misc">Notices and empty states</h2>
         <div className="inset notice error"><IconAlert size={22} /><div><strong>We can't reach the chains right now.</strong><p className="muted">Your orders are safe in your wallets. We're retrying on our own.</p></div></div>

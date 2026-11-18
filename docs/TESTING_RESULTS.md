@@ -117,18 +117,20 @@ Written during the testing phase (TESTING_PHASE page in Notion, phase 3.5). Real
 | DEF-06 | S1 | Green Order placed shown after approving or wrapping | Fixed in 4b5b891, re-tested |
 | DEF-05 | S2 | A rejected order showed Placed, waiting to be heard forever | Fixed in b883ab9, re-tested |
 | DEF-04 | S3 | No reason shown for a removed order | Fixed in b883ab9, re-tested in C-08 |
-| DEF-03 | S3 | The shown bell time runs 4 to 7 s later than the real bell | Open |
-| DEF-07 | S3 | Phone guide shows only the current step | Open |
-| DEF-08 | S3 | False cannot read the price flash for 1 to 2 s on load | Open |
-| DEF-09 | S3 | Dock opens Activity, doc says Bell | Open, owner to decide |
-| DEF-10 | S3 | 17.7 s to a usable Bell on Slow 4G | Open |
-| DEF-11 | S3 | During a pause an unheard order is called Not accepted instead of saying the bell is paused | Open |
+| DEF-03 | S3 | The shown bell time runs 4 to 7 s later than the real bell | Fixed: the time now comes from the head block's own timestamp. Three live bells measured: card +3 s, -2 s, then 0 s after a 1 s calibration |
+| DEF-07 | S3 | Phone guide shows only the current step | Fixed: all three steps show, the current one with its words. A wallet that has not approved is on step 2 |
+| DEF-08 | S3 | False cannot read the price flash for 1 to 2 s on load | Fixed: shows Reading the Uniswap price until the first read finishes or fails |
+| DEF-09 | S3 | Dock opens Activity, doc says Bell | Fixed: the dock opens the live bell, and shows on every screen except Bell, Activity and States |
+| DEF-10 | S3 | 17.7 s to a usable Bell on Slow 4G | Improved to about 11 s: screens split into chunks, the slow reads run in parallel. The 6 s target is not met, the shell alone takes 6.8 s on Slow 4G |
+| DEF-12 | S3 | On a short Safari viewport the pinned action covers the Amount field | Fixed: the action stops pinning while the amount has focus |
+| DEF-11 | S3 | During a pause an unheard order is called Not accepted instead of saying the bell is paused | Fixed: it says the bell is paused and the order was not heard |
 
 ## Not run, blocked or partial
 
 - DONE: P-01 health and subscriptions and A-08 source check, run by calling the Reactive MCP over HTTP (see their rows).
 - BLOCKED, needs people and devices: D-01 to D-03 and D-05. Steps are in docs/DEVICE_TEST_CHECKLIST.md. There is no iOS Simulator here (Linux), so the closest proxy is WebKit with an iPhone 14 profile (D-02-engine). That checks Safari's engine, not iOS Safari, a wallet app browser or VoiceOver.
 - NOT RUN: the 300 s PULL_TIMEOUT refund path (needs a round that loses a callback), screen recordings for G-02 (no screen recording in the container), a human click on the Basescan link (Cloudflare check).
+- Open polish: none. DEF-10 is improved, not closed (Slow 4G usable Bell about 11 s against a 6 s target).
 - PARTIAL: E-04 during a settling round (offline did not overlap the settling), F-13 drawing of a real pairing at rest.
 
 ## Sign-off state

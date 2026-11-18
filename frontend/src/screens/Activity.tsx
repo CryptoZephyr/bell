@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useWallet, friendlyWalletError } from "../wallet/wallet";
 import { useAnnounce, useSheets } from "../app/Shell";
 import { useOrders } from "../app/OrdersContext";
+import { useRoundCtx } from "../app/RoundContext";
 import { OrderTicket } from "../ui/Ticket";
 import { Button, type ButtonState } from "../ui/Button";
 import { IconAlert, IconWallet } from "../ui/Icons";
@@ -49,6 +50,7 @@ export function Activity() {
   const w = useWallet();
   const { openConnect } = useSheets();
   const { orders, loading, error, refresh } = useOrders();
+  const paused = !!useRoundCtx().snap?.paused;
 
   return (
     <div className="stack-lg">
@@ -86,7 +88,7 @@ export function Activity() {
         <ul className="stack ticket-list" aria-label="Your orders">
           {orders.map((o, i) => (
             <li key={`${o.chainId}-${o.deskOrderId}`} className={i % 2 ? "paired-b-li" : undefined}>
-              <OrderTicket o={o}>
+              <OrderTicket o={o} paused={paused}>
                 {o.canCancel && <CancelButton o={o} onDone={refresh} />}
                 {(o.outcome === "settled" || o.outcome === "refunded" || o.outcome === "finished") && <a className="chip-link" href={href.receipt(o.chainId, o.deskOrderId)}>See receipt</a>}
               </OrderTicket>
