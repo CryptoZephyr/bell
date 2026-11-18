@@ -10,7 +10,7 @@ import type { MyOrder } from "../chain/account";
 const STEPS = ["Placed", "In the book", "Bell", "Paid"] as const;
 
 export function Track({ step, outcome }: { step: 0 | 1 | 2 | 3; outcome: MyOrder["outcome"] }) {
-  const ended = outcome === "cancelled" || outcome === "dropped" || outcome === "expired" || outcome === "refunded" || outcome === "finished";
+  const ended = outcome === "cancelled" || outcome === "dropped" || outcome === "expired" || outcome === "rejected" || outcome === "refunded" || outcome === "finished";
   return (
     <ol className="track" aria-label="Order progress">
       {STEPS.map((s, i) => {
@@ -31,11 +31,19 @@ export function Track({ step, outcome }: { step: 0 | 1 | 2 | 3; outcome: MyOrder
   );
 }
 
+/** What a removed order says. The referee gives the reason, so the trader learns why. */
+function removedWord(reason: string | null): string {
+  if (!reason) return "Removed";
+  if (/funds moved/i.test(reason)) return "Removed: your funds moved";
+  if (/pull failed/i.test(reason)) return "Removed: the desk could not collect your funds";
+  return `Removed: ${reason}`;
+}
+
 export function OrderTicket({ o, wide, children }: { o: MyOrder; wide?: boolean; children?: React.ReactNode }) {
   const d = DESKS[o.chainId];
   const word =
     o.outcome === "settled" ? "Paid" : o.outcome === "refunded" ? "Refunded" : o.outcome === "finished" ? "Finished, see receipt" :
-    o.outcome === "cancelled" ? "Cancelled" : o.outcome === "dropped" ? "Removed" : o.outcome === "expired" ? "Expired" :
+    o.outcome === "cancelled" ? "Cancelled" : o.outcome === "dropped" ? removedWord(o.reason) : o.outcome === "rejected" ? "Not accepted. Cancel it to free your slot." : o.outcome === "expired" ? "Expired" :
     o.step === 0 ? "Placed, waiting to be heard" : o.step === 1 ? "In the book" : "Settling";
   return (
     <article className={`ticket card bc bc-card${wide ? " wide" : ""}`} aria-label={`${o.isBuy ? "Buy" : "Sell"} ${fmtEth(o.qty)} ETH on ${d.name}`}>
