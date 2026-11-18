@@ -42,6 +42,7 @@ export async function installWallet(page, who = "buyer1", startChain = 84532) {
       on: (e, f) => { (subs[e] ||= []).push(f); },
       removeListener: (e, f) => { subs[e] = (subs[e] || []).filter((x) => x !== f); },
     };
+    window.__emit = (e, v) => (subs[e] || []).forEach((f) => f(v));
     const info = { uuid: "test-wallet", name: "Test wallet", icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=", rdns: "test.wallet" };
     const announce = () => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: Object.freeze({ info, provider }) }));
     window.addEventListener("eip6963:requestProvider", announce);
