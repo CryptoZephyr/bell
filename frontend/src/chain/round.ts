@@ -240,6 +240,7 @@ export async function loadLastRound(bell: RefEvent, settled: RefEvent): Promise<
     bellTs, settleSeconds: Number(sb.timestamp) - bellTs, payoutSeconds: null, payouts: [],
   };
   const nowS = Date.now() / 1000;
+  let unreadable = false;
   await Promise.all(DESK_CHAIN_IDS.map(async (id) => {
     try {
       const c = client(id);
@@ -257,9 +258,9 @@ export async function loadLastRound(bell: RefEvent, settled: RefEvent): Promise<
         if (ts >= bellTs && ts <= bellTs + 90 && ts > lastTs) lastTs = ts;
       }
       if (lastTs) out.payouts.push({ chainId: id, seconds: lastTs - bellTs });
-    } catch { /* a chain that cannot be read just has no leg shown */ }
+    } catch { unreadable = true; /* a chain that cannot be read leaves the seconds unknown, never understated */ }
   }));
-  if (out.payouts.length) out.payoutSeconds = Math.max(...out.payouts.map((p) => p.seconds));
+  if (out.payouts.length && !unreadable) out.payoutSeconds = Math.max(...out.payouts.map((p) => p.seconds));
   return out;
 }
 
@@ -269,7 +270,7 @@ export async function loadLastRound(bell: RefEvent, settled: RefEvent): Promise<
  * What one desk has confirmed since the bell. payouts counts only Paid and Swapped events that worked. refunds counts
  * Refunded events that worked. lastTs is the newest of these, so the card can tell when a chain has gone quiet.
  */
-export type LegProgress = { chainId: DeskChainId; collected: number; payouts: number; refunds: number; closed: number; lastTs: number | null };
+export type LegProgress = { chainId: DeskChainId; collected: number; payouts: number; refunds: number; closed: number; lastTs: number | null; /** The read of this chain failed, so its counts are unknown, not zero. */ failed?: boolean };
 
 /** What each desk has done since the bell rang. Drives the Base and Unichain nodes while settling. */
 export async function loadLegProgress(sinceMs: number): Promise<LegProgress[]> {
@@ -295,7 +296,7 @@ export async function loadLegProgress(sinceMs: number): Promise<LegProgress[]> {
         out[counts]++;
         if (counts !== "collected" && counts !== "closed") out.lastTs = Math.max(out.lastTs ?? 0, ts);
       }
-    } catch { /* an unreadable chain shows no progress, never a wrong one */ }
+    } catch { out.failed = true; /* an unreadable chain is unknown, and shows as checking, never as nothing to pay */ }
     return out;
   }));
 }

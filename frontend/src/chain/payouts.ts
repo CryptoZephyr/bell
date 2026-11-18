@@ -213,7 +213,8 @@ export function decideOutcome(i: { collected: bigint; closed: bigint; legs: Orde
   if (i.collected === 0n) return "open";
   const closed = i.closed > 0n && i.closed === i.collected;
   if (i.legs && i.legs.payouts.length > 0) return "settled";
-  if (i.legs && closed && i.legs.refunds.length > 0) return "refunded";
+  // A refund seen in a partial read proves nothing: the payout may be on the chain that could not be read.
+  if (i.legs && i.legs.complete && closed && i.legs.refunds.length > 0) return "refunded";
   if (closed && (!i.legs || !i.legs.complete || i.nowS - i.placedTs > PAYOUT_WINDOW_S + 600)) return "finished";
   return "open";
 }
