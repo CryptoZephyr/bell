@@ -20,9 +20,11 @@ contract BellReferee is AbstractReactive {
     uint64 public constant GAS_SWAP = 900_000;
     uint256 public constant DRIFT_BPS = 1000; // 10%
     uint256 public constant BPS = 10_000;
-    /// @dev Set from measured gas: the worst 12-order settle (12 buyers and sellers with the most pairs) costs about
-    ///      643k gas in this contract's own code, under the 700k budget below the 900k reaction cap. 16 orders cost 823k.
-    uint256 public constant MAX_BOOK = 12;
+    /// @dev Set from measured gas, with the live system contract in the loop. A live 8-order round (7 pairs) used
+    ///      364,590 gas for the bell and 717,911 for the settling reaction, so 8 orders already sit at the 700k
+    ///      budget under the 900k reaction cap. The real system adds about 10k gas per callback over the local
+    ///      stand-in. A reaction that does not fit would also fail on the expiry retry, so the cap keeps real headroom.
+    uint256 public constant MAX_BOOK = 6;
     uint256 public constant PULL_TIMEOUT = 300; // seconds a round may wait for its pull callbacks
     uint256 public constant DUST_USDC = 10_000; // 0.01 USDC, below this a remainder is refunded, not swapped
     uint256 public constant DUST_WETH = 1e12; // 1e-6 WETH, below this a remainder is refunded, not swapped

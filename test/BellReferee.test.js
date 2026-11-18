@@ -969,6 +969,9 @@ describe("BellReferee", function () {
     // the real system contract's cost per callback, so it is a floor for the real number, not the real number.
     const UNIT = 10n ** 14n; // 0.0001 WETH, above the dust threshold
     const SETTLE_BUDGET = 700_000n; // headroom under the 900k reaction cap
+    // The live system contract costs about 10.6k gas more per callback than the local stand-in. Measured live: an
+    // 8-order round with 7 pairs (25 callbacks) used 717,911 gas for settle, against 464,255 locally.
+    const LIVE_EXTRA_PER_CALLBACK = 11_000n;
 
     async function prepare() {
       const sg = await ethers.getSigners();
@@ -1011,26 +1014,28 @@ describe("BellReferee", function () {
       for (let id = Number(await referee.nextBookId()) - n; id < Number(await referee.nextBookId()); id++) {
         expect((await referee.orders(id)).open).to.equal(false);
       }
-      return { n, kind, bell: bell.gas, bellCb: bell.callbacks, settle: settle.gas, settleCb: settle.callbacks };
+      const liveSettle = settle.gas + LIVE_EXTRA_PER_CALLBACK * BigInt(settle.callbacks);
+      const liveBell = bell.gas + LIVE_EXTRA_PER_CALLBACK * BigInt(bell.callbacks);
+      return { n, kind, bell: bell.gas, bellCb: bell.callbacks, settle: settle.gas, settleCb: settle.callbacks, liveSettle, liveBell };
     }
 
     it("measures bell and settle gas by book size, and MAX_BOOK keeps the worst case under budget", async function () {
       const T = await prepare();
       const max = Number(await referee.MAX_BOOK());
-      const sizes = [4, 8, 12].filter((n) => n <= max);
+      const sizes = [4, 6, 8, 12].filter((n) => n <= max);
       let worst = 0n;
       let worstBell = 0n;
       for (const n of sizes) {
         for (const kind of ["pairs", "swaps"]) {
           const r = await measure(T, n, kind);
-          console.log(`        ${String(r.n).padStart(2)} orders ${kind.padEnd(5)}: bell ${r.bell} gas (${r.bellCb} cb), settle ${r.settle} gas (${r.settleCb} cb)`);
+          console.log(`        ${String(r.n).padStart(2)} orders ${kind.padEnd(5)}: bell ${r.bell} gas (${r.bellCb} cb), settle ${r.settle} gas (${r.settleCb} cb), live estimate: bell ${r.liveBell}, settle ${r.liveSettle}`);
           if (n === max) {
-            if (r.settle > worst) worst = r.settle;
-            if (r.bell > worstBell) worstBell = r.bell;
+            if (r.liveSettle > worst) worst = r.liveSettle;
+            if (r.liveBell > worstBell) worstBell = r.liveBell;
           }
         }
       }
-      console.log(`        MAX_BOOK = ${max}: worst settle ${worst}, worst bell ${worstBell}`);
+      console.log(`        MAX_BOOK = ${max}: worst live-estimated settle ${worst}, worst bell ${worstBell}`);
       expect(worst).to.be.greaterThan(0n);
       expect(worst).to.be.lessThan(SETTLE_BUDGET);
       expect(worstBell).to.be.lessThan(SETTLE_BUDGET);
