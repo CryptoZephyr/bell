@@ -80,5 +80,14 @@ check("round: nothing confirmed", roundPaidOut([lp({ closed: 2 }), lp({ chainId:
 check("round: one chain still landing", roundPaidOut([lp({ payouts: 1, lastTs: quietTs }), lp({ chainId: 1301, payouts: 1, lastTs: busyTs })], nowMs), false);
 check("round: all quiet", roundPaidOut([lp({ payouts: 1, lastTs: quietTs }), lp({ chainId: 1301, payouts: 1, lastTs: quietTs })], nowMs), true);
 
+// Regression for DEF-01 and DEF-02: a failed read of one chain must never read as Refunded or as nothing to pay.
+check("outcome: refund seen but the other chain unreadable is finished, not refunded",
+  decideOutcome({ collected: 5n, closed: 5n, legs: legs([leg("dust", "USDC")], false), placedTs: now - 100, nowS: now }), "finished");
+check("outcome: the same refund with a complete read is refunded",
+  decideOutcome({ collected: 5n, closed: 5n, legs: legs([leg("dust", "USDC")], true), placedTs: now - 100, nowS: now }), "refunded");
+check("chain: a failed read says Checking payouts", nodeState(lp({ failed: true }), true, nowMs).word, "Checking payouts");
+check("chain: a failed read is never done", nodeState(lp({ failed: true }), true, nowMs).done, false);
+check("round: a failed chain read is not paid out", roundPaidOut([lp({ payouts: 1, lastTs: quietTs }), lp({ chainId: 1301, failed: true })], nowMs), false);
+
 console.log(bad ? `${bad} failing` : `paid-truth: all ${n} checks pass`);
 process.exit(bad ? 1 : 0);
