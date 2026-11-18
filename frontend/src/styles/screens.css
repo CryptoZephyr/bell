@@ -69,3 +69,145 @@
 .split dt { color: var(--text-2); font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
 .split dd { margin: 0; font-weight: 600; text-align: right; }
 .row.wrap { flex-wrap: wrap; }
+
+/* ---------- Trade ---------- */
+.trade-screen { display: grid; gap: 4px; }
+.guide { display: grid; gap: 8px; margin: 0 0 20px; }
+.guide li { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 14px; border-radius: 16px; color: var(--text-2); }
+.guide li.now { background: var(--card); color: var(--card-text); font-weight: 600; --cut: 14px; }
+.guide li.done { color: var(--success-text); }
+.guide .g-dot { width: 24px; height: 24px; border-radius: 12px; display: inline-grid; place-items: center; font-size: 13px; font-weight: 600; border: 1.5px solid currentColor; flex: none; }
+.guide li.now .g-dot { background: var(--signal); border-color: var(--signal); color: var(--ink); }
+.guide li.done .g-dot { background: var(--success-fill); border-color: var(--success-fill); color: #fff; }
+
+.switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin: 0; border: 0; border-radius: 28px; background: var(--inset); }
+.switch label { position: relative; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch span { display: flex; align-items: center; justify-content: center; min-height: 52px; border-radius: 24px; font-weight: 600; font-size: 17px; color: var(--text-2); transition: background-color 180ms cubic-bezier(0.3, 1.5, 0.5, 1), color 120ms; }
+.switch input:checked + span { background: var(--card); color: var(--card-text); }
+.switch input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.chain-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 0; padding: 0; margin: 0; }
+.chain-cards legend { padding: 0 0 8px; font-size: var(--fs-small); font-weight: 600; color: var(--text-2); }
+.chain-card { position: relative; display: block; background: var(--inset); color: var(--text); padding: 16px 16px 14px; border: 2px solid transparent; cursor: pointer; }
+.chain-card input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.chain-card-body { display: grid; gap: 6px; }
+.chain-card-top { display: flex; align-items: center; gap: 8px; }
+.chain-card .tick { margin-left: auto; opacity: 0; color: var(--card-text); background: var(--card); width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; }
+.chain-card:has(input:checked) { background: var(--card); color: var(--card-text); }
+.chain-card:has(input:checked) .muted { color: var(--card-muted); }
+.chain-card:has(input:checked) .tick { opacity: 1; background: var(--signal); color: var(--ink); }
+.chain-card:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
+.chain-bal { font-size: 18px; font-weight: 600; }
+
+.field { display: grid; gap: 8px; }
+.field-label { font-size: var(--fs-small); font-weight: 600; color: var(--text-2); display: inline-flex; align-items: center; gap: 6px; }
+.amount-row { display: flex; gap: 10px; align-items: stretch; }
+.amount-input { flex: 1; min-width: 0; height: 64px; padding: 0 18px; border: 1.5px solid var(--border-control-inset); border-radius: 16px; background: var(--inset); font-size: 32px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); }
+.amount-input::placeholder { color: var(--text-2); opacity: 0.5; }
+.amount-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--text); }
+.chip-btn { min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid var(--border-control-inset); background: var(--inset); font-weight: 600; font-size: 14px; color: var(--text); }
+.chip-btn:disabled { opacity: 0.5; cursor: default; }
+.chip-btn[aria-pressed="true"] { background: var(--card); color: var(--card-text); border-color: var(--card); }
+.quick { display: flex; gap: 8px; flex-wrap: wrap; }
+.prot-readout { font-size: 20px; }
+.worst { font-size: 14px; color: var(--text-2); }
+
+.slider { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; margin: 0; }
+.slider::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--text) 18%, transparent); }
+.slider::-moz-range-track { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--text) 18%, transparent); }
+.slider::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; margin-top: -10px; border-radius: 14px; background: var(--card); border: 3px solid var(--signal); }
+.slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 14px; background: var(--card); border: 3px solid var(--signal); }
+.slider:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+
+.help-btn { width: 44px; height: 44px; margin: -6px; border-radius: 16px; border: 0; background: transparent; color: var(--text-2); display: inline-grid; place-items: center; padding: 0; }
+.help-btn:hover { color: var(--text); }
+.paid-note { display: grid; gap: 6px; }
+.field-warn { display: flex; gap: 8px; color: var(--warning-text); font-size: 14px; }
+.field-warn svg { flex: none; margin-top: 2px; }
+
+/* ---------- the order ticket and its track (section 8) ---------- */
+.ticket { display: grid; gap: 16px; }
+.ticket-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.ticket-side { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.ticket-chain { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--card-muted); }
+.track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+.track li { display: grid; justify-items: center; gap: 6px; position: relative; font-size: 12px; color: var(--card-muted); text-align: center; }
+.track li::before { content: ""; position: absolute; top: 9px; left: -50%; right: 50%; height: 2px; background: color-mix(in srgb, var(--card-text) 25%, transparent); }
+.track li:first-child::before { display: none; }
+.track li.done::before { background: var(--signal); }
+.track .dot { width: 20px; height: 20px; border-radius: 10px; border: 2px solid color-mix(in srgb, var(--card-text) 40%, transparent); background: transparent; display: grid; place-items: center; position: relative; z-index: 1; color: var(--ink); }
+.track li.done .dot { background: var(--signal); border-color: var(--signal); }
+.track li.current .dot { border-color: var(--signal); animation: slowpulse 2200ms ease-in-out infinite; }
+.track li.done .step-name, .track li.current .step-name { color: var(--card-text); font-weight: 600; }
+@keyframes slowpulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal) 0%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--signal) 30%, transparent); } }
+.ticket-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ticket-status { font-weight: 600; }
+.ticket-status.settled { color: var(--success-on-card); }
+.ticket-status.cancelled, .ticket-status.dropped, .ticket-status.expired { color: var(--card-muted); }
+.ticket-actions { display: flex; gap: 8px; }
+.btn.small { min-height: 44px; font-size: 15px; width: auto; padding: 0 16px; }
+
+/* ---------- activity, receipt, landing, contracts, help, states ---------- */
+.ticket-list { list-style: none; padding: 0; margin: 0; }
+.ticket-list > li:nth-child(even) .ticket { margin-left: 16px; }
+.ticket-actions { flex-wrap: wrap; align-items: center; }
+.ticket-actions .field-error { color: var(--error-on-card); margin: 0; }
+.chip-link.back { width: fit-content; margin-bottom: 8px; }
+.mono { font-family: var(--font-mono); }
+.small { font-size: var(--fs-small); }
+
+.receipt-hero { display: grid; gap: 16px; }
+.receipt-head { font-size: 28px; }
+.receipt-pair { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+.receipt-num { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.card .split dt { color: var(--card-muted); }
+.ledger { display: grid; gap: 0; list-style: none; padding: 0; margin: 0; }
+.led { display: grid; grid-template-columns: 24px 1fr; gap: 12px; position: relative; padding-bottom: 20px; }
+.led:last-child { padding-bottom: 0; }
+.led::before { content: ""; position: absolute; left: 11px; top: 22px; bottom: 0; width: 2px; background: color-mix(in srgb, var(--text) 22%, transparent); }
+.led:last-child::before { display: none; }
+.led-dot { width: 22px; height: 22px; border-radius: 11px; border: 2px solid var(--border-control); background: var(--bg); margin-top: 2px; position: relative; z-index: 1; }
+.led.done .led-dot { background: var(--card); border-color: var(--card); }
+.led-body { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+.led-body p { font-size: 14px; }
+.led .chip-link { max-width: 100%; }
+.chain-dot { display: inline-flex; }
+
+.hero { display: grid; gap: 28px; align-items: center; padding-top: 8px; }
+.hero h1 { font-size: clamp(34px, 8vw, 56px); line-height: 1.02; letter-spacing: -0.02em; font-weight: 800; max-width: 14ch; }
+.lede { font-size: 18px; color: var(--text-2); max-width: 44ch; margin: 14px 0 22px; }
+.hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-mark { display: grid; justify-items: center; gap: 10px; background: var(--card); color: var(--card-text); padding: 28px 20px 22px; --cut: var(--cut-card); }
+.hero-line { font-weight: 600; text-align: center; }
+.steps { display: grid; gap: 12px; list-style: none; padding: 0; margin: 0; }
+.step-card { display: grid; gap: 6px; }
+.step-card h3 { font-size: 20px; }
+.step-n { width: 32px; height: 32px; border-radius: 16px; background: var(--signal); color: var(--ink); display: grid; place-items: center; font-weight: 800; }
+@media (min-width: 900px) {
+  .hero { grid-template-columns: 1.2fr 1fr; }
+  .steps { grid-template-columns: repeat(3, 1fr); }
+  .receipt-pair { gap: 24px; }
+}
+
+.addr-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.addr-row { display: grid; gap: 10px; }
+.addr-main { display: grid; gap: 4px; min-width: 0; }
+.addr { font-size: 13px; overflow-wrap: anywhere; color: var(--text-2); }
+.addr-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.chip-btn { display: inline-flex; align-items: center; gap: 6px; }
+.rules { display: grid; gap: 10px; padding-left: 20px; color: var(--text-2); }
+
+.help-item { padding: 0; }
+.help-item summary { cursor: pointer; padding: 16px; font-weight: 600; min-height: 44px; }
+.help-item p { padding: 0 16px 16px; }
+
+.states-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); }
+.state-fig { margin: 0; display: grid; justify-items: center; gap: 6px; padding: 16px 8px; }
+.state-fig figcaption { font-size: 13px; color: var(--card-muted); }
+@media (min-width: 900px) { .states-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Grids must not size their column to the widest child, or a wide input pushes the page sideways on a phone. */
+.stack, .stack-lg, .trade-screen, .trade-form { grid-template-columns: minmax(0, 1fr); }
+.amount-input { width: 100%; min-width: 0; }
+.amount-row { min-width: 0; }

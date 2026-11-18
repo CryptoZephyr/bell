@@ -2,12 +2,27 @@ import { WalletProvider } from "../wallet/wallet";
 import { Announcer, Footer, Header, ShellProvider, TabBar } from "./Shell";
 import { useRoute } from "./router";
 import { RoundProvider } from "./RoundContext";
+import { OrdersProvider } from "./OrdersContext";
+import { Dock } from "../ui/Dock";
 import { Bell } from "../screens/Bell";
+import { Trade } from "../screens/Trade";
+import { Activity } from "../screens/Activity";
+import { Receipt } from "../screens/Receipt";
+import { Landing } from "../screens/Landing";
+import { Contracts } from "../screens/Contracts";
+import { HelpScreen } from "../screens/HelpScreen";
+import { States } from "../screens/States";
 
 function Screen({ route }: { route: ReturnType<typeof useRoute> }) {
   switch (route.name) {
+    case "landing": return <Landing />;
     case "bell": return <Bell />;
-    default: return <div className="screen-head"><h1>Bell</h1><p>Coming next: {route.name}</p></div>;
+    case "trade": return <Trade />;
+    case "activity": return <Activity />;
+    case "receipt": return <Receipt chainId={route.chainId} orderId={route.orderId} />;
+    case "contracts": return <Contracts />;
+    case "help": return <HelpScreen />;
+    case "states": return <States />;
   }
 }
 
@@ -19,6 +34,7 @@ export function App() {
       <Announcer>
         <ShellProvider>
           <RoundProvider>
+            <OrdersProvider>
             <div className="app">
               <a className="skip" href="#main">Skip to content</a>
               <Header route={route} />
@@ -26,8 +42,10 @@ export function App() {
                 <Screen route={route} />
               </main>
               <Footer route={route} />
+              <Dock route={route} />
               <TabBar route={route} />
             </div>
+            </OrdersProvider>
           </RoundProvider>
         </ShellProvider>
       </Announcer>

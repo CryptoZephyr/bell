@@ -31,6 +31,7 @@ export type DeskChain = {
   poolManager: Address;
   tickSpacing: number;
   faucetUsdc: string;
+  faucetEth: string;
 };
 
 const r = rec as unknown as {
@@ -52,14 +53,16 @@ export const DESKS: Record<DeskChainId, DeskChain> = {
     desk: r.baseSepolia.desk, deskBlock: BigInt(r.baseSepolia.block),
     usdc: r.baseSepolia.usdc, weth: r.baseSepolia.weth, poolManager: r.baseSepolia.poolManager, tickSpacing: r.baseSepolia.tickSpacing,
     faucetUsdc: "https://faucet.circle.com",
+    faucetEth: "https://docs.base.org/base-chain/tools/network-faucets",
   },
   1301: {
     id: 1301, key: "unichain", name: "Unichain Sepolia", chain: unichainSepolia,
-    rpc: "https://sepolia.unichain.org",
+    rpc: "https://unichain-sepolia-rpc.publicnode.com", // the official RPC allows only 1000 blocks per log query
     explorer: "https://sepolia.uniscan.xyz", explorerName: "Uniscan",
     desk: r.unichainSepolia.desk, deskBlock: BigInt(r.unichainSepolia.block),
     usdc: r.unichainSepolia.usdc, weth: r.unichainSepolia.weth, poolManager: r.unichainSepolia.poolManager, tickSpacing: r.unichainSepolia.tickSpacing,
     faucetUsdc: "https://faucet.circle.com",
+    faucetEth: "https://www.alchemy.com/faucets/unichain-sepolia",
   },
 };
 

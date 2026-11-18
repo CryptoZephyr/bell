@@ -12,7 +12,7 @@ export function MeetBar({ book, price }: { book: BookOrder[]; price: bigint | nu
   if (!price || book.length === 0) {
     return (
       <div className="meet inset">
-        <h3>This bell</h3>
+        <h2 className="h3">This bell</h2>
         <p className="muted">No orders yet. The next bell starts when someone places one.</p>
         <div className="meet-track empty" aria-hidden="true"><span className="seam" /></div>
       </div>
@@ -30,7 +30,7 @@ export function MeetBar({ book, price }: { book: BookOrder[]; price: bigint | nu
       : `${fmtEth(m.paired)} ETH pairs off at ${fmtPrice(price)} USDC per ETH.${pool > 0n ? ` ${fmtEth(pool)} ETH goes to the Uniswap pool.` : ""}`;
   return (
     <div className="meet inset">
-      <h3>This bell</h3>
+      <h2 className="h3">This bell</h2>
       <p className="muted small">If the bell rang now, at the current Uniswap price.</p>
       <div className="meet-track" role="img" aria-label={alt}>
         <div className="meet-side meet-left" style={{ width: `${buyW / 2}%` }}>
@@ -47,7 +47,7 @@ export function MeetBar({ book, price }: { book: BookOrder[]; price: bigint | nu
         <span><strong>Buyers</strong> {fmtEth(m.buy)} ETH</span>
         <span><strong>Sellers</strong> {fmtEth(m.sell)} ETH</span>
       </div>
-      <p className="meet-note tnum">{alt}</p>
+      <p className="meet-note">{alt}</p>
     </div>
   );
 }

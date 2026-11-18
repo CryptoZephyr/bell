@@ -52,6 +52,9 @@ export type RoundSnapshot = {
   settlePrice: bigint;
   roundId: bigint;
   maxBook: number;
+  /** Open orders one wallet may hold, and how long an order may sit in the book (seconds). Both are read from the referee. */
+  maxPerWallet: number;
+  orderTtl: number;
   book: BookOrder[];
   referencePrice: bigint;
   priceAgeSeconds: number | null;
@@ -125,8 +128,9 @@ export async function loadRound(): Promise<RoundSnapshot> {
   const head = await c.getBlockNumber();
   const read = <T extends string>(fn: T) => c.readContract({ address: REFEREE, abi: refereeAbi, functionName: fn as any } as any) as Promise<any>;
 
-  const [cronOn, pulling, openPrice, settlePrice, roundId, maxBook, secPerBlock] = await Promise.all([
+  const [cronOn, pulling, openPrice, settlePrice, roundId, maxBook, secPerBlock, maxPerWallet, orderTtl] = await Promise.all([
     read("cronOn"), read("pulling"), read("openPrice"), read("settlePrice"), read("roundId"), read("MAX_BOOK"), lasnaSecPerBlock(head),
+    read("MAX_ORDERS_PER_TRADER"), read("ORDER_TTL"),
   ]);
 
   // The book, in FIFO order.
@@ -170,7 +174,7 @@ export async function loadRound(): Promise<RoundSnapshot> {
   const nextBellAt = cronOn || book.length > 0 ? nowMs + (blocksToTick + 1) * secPerBlock * 1000 : null;
 
   return {
-    fetchedAt: nowMs, lasnaBlock: head, secPerBlock, cronOn, pulling, openPrice, settlePrice, roundId, maxBook: Number(maxBook),
+    fetchedAt: nowMs, lasnaBlock: head, secPerBlock, cronOn, pulling, openPrice, settlePrice, roundId, maxBook: Number(maxBook), maxPerWallet: Number(maxPerWallet), orderTtl: Number(orderTtl),
     book, referencePrice: ref.price, priceAgeSeconds: age, nextBellAt, paused, pausedReason, events,
     lastBellRang, lastSettled, lastVoid, lastBellMs: msAt(lastBellRang), lastSettledMs: msAt(lastSettled), lastVoidMs: msAt(lastVoid),
   };
