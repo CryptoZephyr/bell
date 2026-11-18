@@ -1,0 +1,124 @@
+/* Bell design tokens. Source: DESIGN_SYSTEM.md (proposal), revision 2, sections 6, 6b and 16.
+   60/30/10: Fog (page) / Ink (structure) / Signal (action). Dark keeps the same roles with Night / Midnight / Signal.
+   Signal on Fog fails contrast, so on light surfaces it is a fill with an Ink label, or it sits on an Ink card.
+   Text and thin marks on light surfaces use Signal Deep. */
+
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 400; font-style: normal; font-display: swap;
+  src: url("/fonts/schibsted-grotesk-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 600; font-style: normal; font-display: swap;
+  src: url("/fonts/schibsted-grotesk-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 800; font-style: normal; font-display: swap;
+  src: url("/fonts/schibsted-grotesk-latin-800-normal.woff2") format("woff2"); }
+@font-face { font-family: "Spline Sans Mono"; font-weight: 400; font-style: normal; font-display: swap;
+  src: url("/fonts/spline-sans-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Spline Sans Mono"; font-weight: 500; font-style: normal; font-display: swap;
+  src: url("/fonts/spline-sans-mono-latin-500-normal.woff2") format("woff2"); }
+
+:root {
+  /* palette */
+  --fog: #DDE2EA;
+  --ink: #0E1320;
+  --signal: #FF6B2C;
+  --signal-pressed: #F0581A;
+  --signal-deep: #A63D0E;
+  --sheet: #EEF1F5;
+  --ink-2: #4A5568;
+  --on-ink: #EEF1F5;
+  --on-ink-muted: #9AA6BA;
+  --night: #0A0E18;
+  --midnight: #18213F;
+  --night-sheet: #131A2A;
+  --mint: #0A6644;
+  --mint-light: #5FD3A0;
+  --ember: #B42318;
+  --ember-light: #FF8A7A;
+  --amber: #8A5A00;
+  --amber-light: #F5B74A;
+
+  /* semantic, light */
+  --bg: var(--fog);
+  --card: var(--ink);
+  --card-text: var(--on-ink);
+  --card-muted: var(--on-ink-muted);
+  --inset: var(--sheet);
+  --text: var(--ink);
+  --text-2: var(--ink-2);
+  --accent: var(--signal);
+  --accent-pressed: var(--signal-pressed);
+  --accent-label: var(--ink);
+  --accent-text: var(--signal-deep);
+  --success-text: var(--mint);
+  --error-text: var(--ember);
+  --warning-text: var(--amber);
+  --success-on-card: var(--mint-light);
+  --error-on-card: var(--ember-light);
+  --warning-on-card: var(--amber-light);
+  --success-fill: var(--mint);
+  --success-label: #FFFFFF;
+  --border-control: #6B7588;
+  --border-control-inset: #6B7588;
+  --focus: var(--ink);
+  --btn2-bg: var(--ink);
+  --btn2-text: var(--fog);
+  --btn2-border: transparent;
+  --band: var(--ink);
+  --band-silhouette: #1A2238;
+  --shadow-sheet: 0 -8px 32px rgba(14, 19, 32, 0.22);
+  color-scheme: light;
+
+  /* type */
+  --font: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --fs-countdown: 72px;
+  --fs-price: 40px;
+  --fs-title: 28px;
+  --fs-body: 16px;
+  --fs-small: 13px;
+
+  /* shape */
+  --r-card: 24px;
+  --r-btn: 16px;
+  --r-chip: 12px;
+  --cut-card: 32px;
+  --cut-btn: 14px;
+  --cut-sheet: 10px;
+
+  /* space (4px base) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s7: 28px; --s8: 32px; --s10: 40px; --s12: 48px; --s16: 64px;
+  --pad-card: 20px;
+  --tab-h: 72px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (min-width: 900px) {
+  :root {
+    --fs-countdown: 96px;
+    --fs-price: 56px;
+    --cut-card: 40px;
+    --pad-card: 28px;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: var(--night);
+  --card: var(--midnight);
+  --card-text: #EEF1F5;
+  --card-muted: #9AA6BA;
+  --inset: var(--night-sheet);
+  --text: #EEF1F5;
+  --text-2: #9AA6BA;
+  --accent-text: var(--signal);
+  --success-text: var(--mint-light);
+  --error-text: var(--ember-light);
+  --warning-text: var(--amber-light);
+  --border-control: #5A6478;
+  --border-control-inset: #6A7488;
+  --focus: var(--signal);
+  --btn2-bg: var(--midnight);
+  --btn2-text: #EEF1F5;
+  --btn2-border: #5A6478;
+  --band: var(--midnight);
+  --band-silhouette: #222C4F;
+  --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}

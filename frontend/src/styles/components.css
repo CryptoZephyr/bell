@@ -1,0 +1,222 @@
+/* ---------- app shell (section 5) ---------- */
+.app { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+.skip { position: absolute; left: 8px; top: -60px; z-index: 100; background: var(--card); color: var(--card-text); padding: 12px 16px; border-radius: 12px; }
+.skip:focus { top: 8px; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; position: sticky; top: 0; z-index: 20; background: var(--bg); }
+.topbar .brand { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; color: var(--text); }
+.topbar .tabs-desktop { display: none; }
+@media (min-width: 900px) {
+  .topbar { padding: 16px 32px; }
+  .topbar .tabs-desktop { display: flex; gap: 4px; position: absolute; left: 50%; transform: translateX(-50%); }
+}
+
+.tab-link {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 22px;
+  text-decoration: none; font-weight: 600; color: var(--text-2);
+}
+.tab-link[aria-current="page"] { color: var(--card-text); background: var(--card); }
+.tab-link:hover { color: var(--text); }
+.tab-link[aria-current="page"]:hover { color: var(--card-text); }
+
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: space-around; align-items: stretch;
+  background: var(--card); color: var(--card-muted); padding: 6px 8px calc(6px + var(--safe-bottom));
+  border-top-left-radius: 24px; border-top-right-radius: 24px;
+}
+.tabbar a {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 56px; border-radius: 16px;
+  text-decoration: none; font-size: 12px; font-weight: 600; color: var(--card-muted);
+}
+.tabbar a[aria-current="page"] { color: var(--card-text); }
+.tabbar a[aria-current="page"] .tab-icon { color: var(--signal); }
+.tabbar a:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; border-radius: 16px; }
+@media (min-width: 900px) { .tabbar { display: none; } }
+
+main { flex: 1; width: 100%; max-width: 560px; margin: 0 auto; padding: 8px 16px calc(var(--tab-h) + 96px + var(--safe-bottom)); outline: none; }
+main.wide { max-width: 1120px; }
+@media (min-width: 900px) { main { padding: 16px 32px 64px; } main.wide { padding-bottom: 64px; } }
+
+.screen-head { display: grid; gap: 4px; margin: 8px 0 20px; }
+.screen-head .where { color: var(--text-2); font-size: var(--fs-small); }
+.screen-head p { color: var(--text-2); }
+
+/* The order dock (section 5): a small Ink card above the tab bar whenever you have an order open. */
+.dock {
+  position: fixed; left: 12px; right: 12px; bottom: calc(var(--tab-h) + 8px + var(--safe-bottom)); z-index: 25;
+  background: var(--card); color: var(--card-text); padding: 12px 16px; display: flex; align-items: center; gap: 12px; --cut: 20px;
+  border-radius: 20px; text-decoration: none;
+}
+.dock .dock-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.dock .dock-title { font-weight: 600; }
+.dock .dock-sub { color: var(--card-muted); font-size: var(--fs-small); }
+@media (min-width: 900px) { .dock { left: auto; right: 24px; bottom: 24px; width: 360px; } }
+
+/* ---------- surfaces ---------- */
+.card { background: var(--card); color: var(--card-text); padding: var(--pad-card); }
+.card .muted { color: var(--card-muted); }
+.card .accent-text { color: var(--signal); }
+.card.paired-b { margin-left: 24px; }
+.inset { background: var(--inset); border-radius: var(--r-card); padding: var(--pad-card); }
+.stack { display: grid; gap: 16px; }
+.stack-lg { display: grid; gap: 24px; }
+.row { display: flex; align-items: center; gap: 12px; }
+.row.between { justify-content: space-between; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--text-2); }
+.accent-text { color: var(--accent-text); }
+
+.tag-testnet {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
+  background: transparent; color: var(--warning-on-card); border: 1px solid currentColor; letter-spacing: 0.01em;
+}
+.wallet-btn .tag-testnet { color: var(--warning-on-card); }
+
+/* ---------- buttons (section 7) ---------- */
+.btn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+  min-height: 56px; padding: 0 22px; border: 0; font-weight: 600; font-size: 17px; line-height: 1.1; text-decoration: none;
+  background: var(--accent); color: var(--accent-label); overflow: hidden; isolation: isolate;
+  transition: transform 180ms cubic-bezier(0.3, 1.6, 0.5, 1), background-color 120ms;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none;
+}
+@media (min-width: 900px) { .btn { min-height: 48px; } .btn.auto { width: auto; } }
+.btn.auto { width: auto; }
+.btn:active:not(:disabled), .btn[data-pressed="true"] { transform: scale(0.97); background: var(--accent-pressed); transition-duration: 60ms; }
+.btn:disabled { cursor: default; }
+.btn .glyph { width: 24px; height: 24px; flex: none; display: inline-grid; place-items: center; }
+.btn .label { position: relative; z-index: 2; }
+
+.btn.secondary { background: var(--btn2-bg); color: var(--btn2-text); min-height: 48px; border: 1.5px solid var(--btn2-border); }
+.btn.secondary:active:not(:disabled) { background: var(--btn2-bg); filter: brightness(1.15); }
+
+/* working: the button keeps its size, shows the real step in its label, and a thin fill runs along its bottom edge as
+   each step completes. The button stays Signal with an Ink label, so contrast never drops while it works. */
+.btn[data-state="working"] { cursor: progress; }
+.btn[data-state="working"]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; z-index: 1; background: var(--accent-label);
+  transform-origin: left; transform: scaleX(var(--progress, 0.15)); transition: transform 500ms ease; opacity: 0.55;
+}
+.btn[data-state="working"]::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; z-index: 0; background: var(--accent-label); opacity: 0.15; }
+.btn[data-state="success"] { background: var(--success-fill); color: var(--success-label); }
+.btn[data-state="failure"] { animation: shake 360ms ease; }
+.btn[data-state="success"] .glyph path.draw { stroke-dasharray: 30; stroke-dashoffset: 30; animation: draw 300ms ease forwards; }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* hold to join: a ring around the glyph fills while the button is held */
+.btn .hold-ring { position: absolute; left: 22px; width: 32px; height: 32px; z-index: 2; pointer-events: none; }
+.btn .hold-ring circle { fill: none; stroke: var(--accent-label); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 88; stroke-dashoffset: calc(88 - 88 * var(--hold, 0)); transform: rotate(-90deg); transform-origin: center; opacity: 0.85; }
+
+.field-error { color: var(--error-text); font-size: 14px; display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; }
+.field-error svg { flex: none; margin-top: 2px; }
+.field-hint { color: var(--text-2); font-size: 14px; margin-top: 8px; }
+
+.icon-actions { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+.icon-action { display: grid; justify-items: center; gap: 6px; background: none; border: 0; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none; color: var(--text); }
+.icon-action .ic { width: 48px; height: 48px; border-radius: 24px; background: var(--inset); display: grid; place-items: center; }
+
+/* explorer links are chips, never underlined text */
+.chip-link {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 16px; background: var(--inset); color: var(--text);
+  text-decoration: none; font-size: 13px; font-weight: 600; border: 1px solid transparent;
+}
+.card .chip-link { background: color-mix(in srgb, var(--card-text) 12%, transparent); color: var(--card-text); }
+.chip-link:hover { border-color: var(--border-control); }
+.chip-link svg { flex: none; }
+
+/* ---------- sheets: the native dialog element (section 15) ---------- */
+dialog.sheet {
+  position: fixed; inset: auto 0 0 0; margin: 0 auto; width: 100%; max-width: 560px; max-height: 90dvh; border: 0; padding: 0; overflow: auto;
+  background: var(--bg); color: var(--text); box-shadow: var(--shadow-sheet); border-radius: 24px 24px 0 0; border-top-left-radius: 10px; --cut: 10px;
+  clip-path: none;
+  animation: rise 320ms cubic-bezier(0.2, 1.1, 0.4, 1);
+}
+dialog.sheet::backdrop { background: rgba(10, 14, 24, 0.55); animation: fade 200ms ease; }
+dialog.sheet .sheet-body { padding: 24px 20px calc(24px + var(--safe-bottom)); display: grid; gap: 16px; }
+dialog.sheet .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+dialog.sheet .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--border-control); margin: 8px auto 0; opacity: 0.6; }
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@media (min-width: 900px) { dialog.sheet { inset: 0; margin: auto; border-radius: 24px; border-top-left-radius: 10px; max-height: 80dvh; } }
+
+.close-btn { width: 44px; height: 44px; border-radius: 22px; border: 0; background: var(--inset); display: grid; place-items: center; }
+
+/* ---------- the living mark (section 8) ---------- */
+.living-mark { display: block; overflow: visible; color: var(--card-text); }
+.living-mark .lm-hook { fill: currentColor; transition: transform 900ms cubic-bezier(0.5, 0, 0.2, 1), fill 200ms; }
+.living-mark .lm-hook-b { transform: translate(var(--gap, 14px), 0); }
+.living-mark .lm-turn { transform-origin: 190px 156.5px; transition: transform 1000ms cubic-bezier(0.5, 0, 0.2, 1); }
+.living-mark[data-state="settling"] .lm-turn { transform: rotate(180deg); }
+.living-mark[data-state="done"] .lm-turn { transform: rotate(180deg); transition: none; }
+.living-mark[data-state="last10"] .lm-hook-b { transition-duration: 1000ms; transition-timing-function: linear; }
+.living-mark[data-state="bell"] .lm-hook-b { transition-duration: 160ms; transition-timing-function: cubic-bezier(0.3, 1.8, 0.5, 1); }
+.living-mark[data-state="skipped"] .lm-hook-b { animation: skip 2600ms ease-in-out both; }
+@keyframes skip { 0% { transform: translate(14px, 0); } 40% { transform: translate(5px, 0); } 55% { transform: translate(5px, 0); } 100% { transform: translate(14px, 0); } }
+.living-mark[data-state="paused"] .lm-hook { fill: none; stroke: currentColor; stroke-width: 9; stroke-linejoin: round; }
+.living-mark .lm-ring-track { stroke: color-mix(in srgb, currentColor 18%, transparent); }
+.living-mark .lm-ring { stroke: var(--signal); transition: stroke-dasharray 1s linear; }
+.living-mark .lm-pulse { stroke: var(--signal); transform-origin: 100px 100px; animation: pulse 900ms ease-out forwards; }
+@keyframes pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.16); opacity: 0; } }
+.living-mark .lm-tick { stroke: var(--success-on-card); stroke-dasharray: 60; stroke-dashoffset: 60; animation: draw 360ms 200ms ease forwards; }
+
+/* ---------- live regions ---------- */
+.live-region { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- skeletons (breathing fade, no shimmer) ---------- */
+.skeleton { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 12px; animation: breathe 2200ms ease-in-out infinite; }
+.card .skeleton { background: color-mix(in srgb, var(--card-text) 16%, transparent); }
+@keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+/* ---------- wallet button, wallet list, account sheet ---------- */
+.wallet-btn {
+  --cut: var(--cut-btn); display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px 0 14px; border: 0;
+  background: var(--card); color: var(--card-text); font-weight: 600; font-size: 15px;
+}
+.wallet-btn.connect { background: var(--accent); color: var(--accent-label); }
+.wallet-btn[data-busy] { opacity: 0.8; }
+.wallet-list { display: grid; gap: 8px; }
+.wallet-opt {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 0 16px; border: 1.5px solid var(--border-control-inset);
+  border-radius: 16px; background: var(--inset); font-weight: 600; text-align: left;
+}
+.wallet-opt img { border-radius: 8px; }
+.wallet-opt:hover:not(:disabled) { border-color: var(--text); }
+.sheet-link { display: flex; align-items: center; min-height: 48px; padding: 0 16px; border-radius: 16px; background: var(--inset); text-decoration: none; font-weight: 600; }
+.sheet-link:hover { outline: 1.5px solid var(--border-control-inset); }
+
+/* theme choice: native radios drawn as our own segmented control */
+.theme-choice { display: inline-flex; gap: 4px; padding: 4px; margin: 0; border: 0; border-radius: 24px; background: var(--inset); }
+.theme-choice label { position: relative; }
+.theme-choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.theme-choice span { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; min-width: 76px; padding: 0 14px; border-radius: 20px; font-weight: 600; font-size: 14px; color: var(--text-2); }
+.theme-choice input:checked + span { background: var(--card); color: var(--card-text); }
+.theme-choice input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+.theme-choice.on-ink { background: color-mix(in srgb, var(--on-ink) 10%, transparent); }
+.theme-choice.on-ink span { color: var(--on-ink-muted); }
+.theme-choice.on-ink input:checked + span { background: var(--signal); color: var(--ink); }
+.theme-choice.on-ink input:focus-visible + span { outline-color: var(--signal); }
+
+/* ---------- footer (section 9b) ---------- */
+.footer { display: none; position: relative; overflow: hidden; margin-top: 48px; background: var(--band); color: var(--on-ink); border-radius: 0; --cut: 32px; }
+.footer.show-phone { display: block; }
+@media (min-width: 900px) { .footer { display: block; --cut: 40px; } }
+.footer { padding-bottom: calc(var(--tab-h) + var(--safe-bottom)); }
+@media (min-width: 900px) { .footer { padding-bottom: 0; } }
+.footer-inner { position: relative; z-index: 1; padding: 48px 24px 0; display: grid; gap: 32px; }
+.footer-brand p { margin-top: 12px; color: var(--on-ink-muted); }
+.footer-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.footer-cols h2 { font-size: 13px; font-weight: 600; color: var(--on-ink-muted); margin-bottom: 10px; }
+.footer-cols ul { display: grid; gap: 4px; }
+.footer-cols a { display: inline-flex; align-items: center; min-height: 44px; color: var(--on-ink); text-decoration: none; font-weight: 600; }
+.footer-cols a:hover { color: var(--signal); }
+.footer-cols a:focus-visible { outline: 2px solid var(--signal); }
+.footer-base { display: grid; gap: 12px; justify-items: start; color: var(--on-ink-muted); font-size: 14px; }
+.footer-base .tag-testnet { margin-right: 8px; }
+.footer-silhouette { display: block; position: relative; width: 110%; margin: 24px 0 0 -5%; color: var(--band-silhouette); }
+@media (min-width: 900px) {
+  .footer-inner { padding: 64px 48px 56px; grid-template-columns: 5fr 7fr; max-width: 1280px; margin: 0 auto; }
+  .footer-base { grid-column: 1 / -1; max-width: 40%; padding-bottom: 32px; }
+  .footer-cols { grid-template-columns: repeat(3, 1fr); }
+  .footer-silhouette { position: absolute; right: 0; bottom: 0; width: 58%; margin: 0; }
+}

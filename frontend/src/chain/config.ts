@@ -1,0 +1,83 @@
+// Networks, addresses and constants. Addresses come from the repo's deployment record (deployments/bell.json),
+// never from copies, so a redeploy only needs the record to change.
+import rec from "@deploy/bell.json";
+import { defineChain, type Address, type Chain } from "viem";
+import { baseSepolia, unichainSepolia } from "viem/chains";
+
+export type DeskChainId = 84532 | 1301;
+export const DESK_CHAIN_IDS: DeskChainId[] = [84532, 1301];
+export const LASNA_ID = 5318007;
+
+export const lasna: Chain = defineChain({
+  id: LASNA_ID,
+  name: "Reactive Lasna",
+  nativeCurrency: { name: "REACT", symbol: "REACT", decimals: 18 },
+  rpcUrls: { default: { http: ["https://lasna-rpc.rnk.dev/"] } },
+  blockExplorers: { default: { name: "Reactscan", url: "https://lasna.reactscan.net" } },
+});
+
+export type DeskChain = {
+  id: DeskChainId;
+  key: "base" | "unichain";
+  name: string;
+  chain: Chain;
+  rpc: string;
+  explorer: string;
+  explorerName: string;
+  desk: Address;
+  deskBlock: bigint;
+  usdc: Address;
+  weth: Address;
+  poolManager: Address;
+  tickSpacing: number;
+  faucetUsdc: string;
+};
+
+const r = rec as unknown as {
+  referee: Address; refereeBlock: number; poolIdB: `0x${string}`;
+  baseSepolia: { desk: Address; block: number; usdc: Address; weth: Address; poolManager: Address; tickSpacing: number };
+  unichainSepolia: { desk: Address; block: number; usdc: Address; weth: Address; poolManager: Address; tickSpacing: number };
+};
+
+export const REFEREE: Address = r.referee;
+export const REFEREE_BLOCK = BigInt(r.refereeBlock);
+export const REFERENCE_POOL_ID = r.poolIdB;
+export const SYSTEM_CONTRACT: Address = "0x8888888888888888888888888888888888888888";
+
+export const DESKS: Record<DeskChainId, DeskChain> = {
+  84532: {
+    id: 84532, key: "base", name: "Base Sepolia", chain: baseSepolia,
+    rpc: "https://base-sepolia-rpc.publicnode.com",
+    explorer: "https://sepolia.basescan.org", explorerName: "Basescan",
+    desk: r.baseSepolia.desk, deskBlock: BigInt(r.baseSepolia.block),
+    usdc: r.baseSepolia.usdc, weth: r.baseSepolia.weth, poolManager: r.baseSepolia.poolManager, tickSpacing: r.baseSepolia.tickSpacing,
+    faucetUsdc: "https://faucet.circle.com",
+  },
+  1301: {
+    id: 1301, key: "unichain", name: "Unichain Sepolia", chain: unichainSepolia,
+    rpc: "https://sepolia.unichain.org",
+    explorer: "https://sepolia.uniscan.xyz", explorerName: "Uniscan",
+    desk: r.unichainSepolia.desk, deskBlock: BigInt(r.unichainSepolia.block),
+    usdc: r.unichainSepolia.usdc, weth: r.unichainSepolia.weth, poolManager: r.unichainSepolia.poolManager, tickSpacing: r.unichainSepolia.tickSpacing,
+    faucetUsdc: "https://faucet.circle.com",
+  },
+};
+
+export const REFERENCE_CHAIN: DeskChainId = 1301; // the reference pool lives on Unichain
+export const LASNA_EXPLORER = "https://lasna.reactscan.net";
+export const BELL_EVERY_BLOCKS = 100; // Cron100
+export const POOL_FEE_PPM = 500n;
+export const PRICE_STALE_SECONDS = 180;
+
+export function chainName(id: number): string {
+  return id === LASNA_ID ? "Reactive Lasna" : DESKS[id as DeskChainId]?.name ?? `Chain ${id}`;
+}
+export function txUrl(chainId: number, hash: string): string {
+  return chainId === LASNA_ID ? `${LASNA_EXPLORER}/tx/${hash}` : `${DESKS[chainId as DeskChainId].explorer}/tx/${hash}`;
+}
+export function addressUrl(chainId: number, addr: string): string {
+  return chainId === LASNA_ID ? `${LASNA_EXPLORER}/address/${addr}` : `${DESKS[chainId as DeskChainId].explorer}/address/${addr}`;
+}
+export function explorerName(chainId: number): string {
+  return chainId === LASNA_ID ? "Reactscan" : DESKS[chainId as DeskChainId].explorerName;
+}

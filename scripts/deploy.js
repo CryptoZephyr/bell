@@ -46,6 +46,7 @@ async function main() {
     await c.waitForDeployment();
     rec.referee = await c.getAddress();
     rec.refereeTx = c.deploymentTransaction().hash;
+    rec.refereeBlock = (await c.deploymentTransaction().wait()).blockNumber; // the app scans events from here
     writeRecord(rec);
     console.log("referee", rec.referee, "tx", rec.refereeTx);
     return;
@@ -69,6 +70,7 @@ async function main() {
       poolManager: cfg.poolManager,
       tickSpacing: cfg.tickSpacing,
       tx: c.deploymentTransaction().hash,
+      block: (await c.deploymentTransaction().wait()).blockNumber, // the app scans events from here
     };
     writeRecord(rec);
     console.log(key, "desk", rec[key].desk, "tx", rec[key].tx);
