@@ -11,7 +11,11 @@ export function RoundProvider({ children }: { children: ReactNode }) {
   const r = useRound();
   const now = useNow();
   const last = useLastRound(r.snap);
-  const mark = r.snap ? markStateOf(r.snap, now) : null;
+  const raw = r.snap ? markStateOf(r.snap, now) : null;
+  // Lasna's Settled event only means the payouts were requested. Until this round's payouts are read from the desk
+  // chains, every screen (Landing, the dock, Bell) shows "settling", never "done".
+  const paidOutRead = !!(last && r.snap?.lastBellRang && last.bellTx === r.snap.lastBellRang.tx && last.payoutSeconds !== null);
+  const mark: MarkState | null = raw === "done" && !paidOutRead ? "settling" : raw;
   const secondsLeft = r.snap?.nextBellAt ? Math.max(0, (r.snap.nextBellAt - now) / 1000) : null;
   return <C.Provider value={{ ...r, now, last, mark, secondsLeft }}>{children}</C.Provider>;
 }

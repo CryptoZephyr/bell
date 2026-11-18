@@ -88,7 +88,7 @@ export function Activity() {
             <li key={`${o.chainId}-${o.deskOrderId}`} className={i % 2 ? "paired-b-li" : undefined}>
               <OrderTicket o={o}>
                 {o.canCancel && <CancelButton o={o} onDone={refresh} />}
-                {o.outcome === "settled" && <a className="chip-link" href={href.receipt(o.chainId, o.deskOrderId)}>See receipt</a>}
+                {(o.outcome === "settled" || o.outcome === "refunded" || o.outcome === "finished") && <a className="chip-link" href={href.receipt(o.chainId, o.deskOrderId)}>See receipt</a>}
               </OrderTicket>
             </li>
           ))}

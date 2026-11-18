@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRoundCtx } from "../app/RoundContext";
 import { useWallet } from "../wallet/wallet";
 import { useAnnounce } from "../app/Shell";
-import { BellCard, sentenceFor } from "../ui/BellCard";
+import { BellCard, roundPaidOut, sentenceFor } from "../ui/BellCard";
 import { Book, MeetBar } from "../ui/Book";
 import { LastBell } from "../ui/LastBell";
 import { Button } from "../ui/Button";
@@ -33,10 +33,16 @@ export function Bell() {
   const r = useRoundCtx();
   const w = useWallet();
   const announce = useAnnounce();
-  const { snap, mark, secondsLeft, last } = r;
+  const { snap, mark: rawMark, secondsLeft, last, now } = r;
 
-  const settlingNow = mark === "bell" || mark === "settling" || mark === "done";
+  const settlingNow = rawMark === "bell" || rawMark === "settling" || rawMark === "done";
   const legs = useLegs(settlingNow, snap?.lastBellMs ?? null);
+  // Lasna's Settled event only means the payouts were requested. The shared mark already waits for this round's payouts
+  // to be read. Here the chain nodes also have to go quiet before the card says done.
+  const settledOnLasna = rawMark === "done" || (rawMark === "settling" && !!snap?.lastSettled && !!snap?.lastBellRang && snap.lastSettled.block >= snap.lastBellRang.block && !snap.pulling);
+  const mark = rawMark === "done" && !roundPaidOut(legs, now) ? "settling" : rawMark;
+  // The seconds shown are bell to the last confirmed payout. The Lasna settle time is never shown in their place.
+  const doneSeconds = last?.payoutSeconds ?? null;
 
   // Round progress goes to the polite live region. The countdown itself is never announced every second.
   const prev = useRef<string | null>(null);
@@ -45,9 +51,9 @@ export function Bell() {
     prev.current = mark;
     if (mark === "bell") announce("Bell rang");
     if (mark === "settling") announce("Settling on Base and Unichain");
-    if (mark === "done") announce(sentenceFor({ state: "done", nextBellAt: null, secondsLeft: null, doneSeconds: last?.payoutSeconds ?? last?.settleSeconds ?? null }));
+    if (mark === "done") announce(sentenceFor({ state: "done", nextBellAt: null, secondsLeft: null, doneSeconds }));
     if (mark === "skipped") announce("This bell was skipped because the price jumped. Orders carry to the next one.");
-  }, [mark, last, announce]);
+  }, [mark, doneSeconds, announce]);
 
   const total = snap ? 100 * snap.secPerBlock + snap.secPerBlock : 110;
   const progress = secondsLeft !== null ? Math.max(0, Math.min(1, secondsLeft / total)) : 0;
@@ -80,8 +86,10 @@ export function Bell() {
             progress={progress}
             referencePrice={snap?.referencePrice ?? null}
             priceAgeSeconds={snap?.priceAgeSeconds ?? null}
-            doneSeconds={last ? (last.payoutSeconds ?? last.settleSeconds) : null}
+            doneSeconds={doneSeconds}
             legs={legs}
+            settledOnLasna={settledOnLasna}
+            now={now}
             loading={r.loading && !snap}
           />
           <Button href={href.trade} glyph={<IconTrade />} label={empty ? "Place the first order" : "Place an order"} />
