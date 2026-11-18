@@ -19,7 +19,7 @@ const pools = require("../deployments/pools.json");
 const refereeIface = new ethers.Interface(require("../artifacts/contracts/BellReferee.sol/BellReferee.json").abi);
 const deskIface = new ethers.Interface(require("../artifacts/contracts/BellDesk.sol/BellDesk.json").abi);
 
-const RPC = { base: "https://sepolia.base.org", unichain: "https://sepolia.unichain.org", lasna: "https://lasna-rpc.rnk.dev/" };
+const RPC = { base: "https://base-sepolia-rpc.publicnode.com", unichain: "https://sepolia.unichain.org", lasna: "https://lasna-rpc.rnk.dev/" };
 const DESK = { base: rec.baseSepolia.desk, unichain: rec.unichainSepolia.desk };
 const USDC = { base: rec.baseSepolia.usdc, unichain: rec.unichainSepolia.usdc };
 const WETH = "0x4200000000000000000000000000000000000006";
