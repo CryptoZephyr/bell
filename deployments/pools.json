@@ -1,0 +1,31 @@
+{
+  "baseSepolia": {
+    "poolSwapTest": "0xC6Cdd4E54A057E63B3B6F56bF1173356dA73939c",
+    "poolModifyLiquidityTest": "0x973c8Daa7e712f931632844C99d2b0b23700efe8",
+    "position": {
+      "tickLower": 208520,
+      "tickUpper": 210540,
+      "liquidity": "5452383451899",
+      "tx": "0xaf857aeb93d687026b1c9a444f92aea5abdbbe7345f3c787f2236aa605a09356"
+    },
+    "alignedTo": 800,
+    "testSwapMovePct": -1.78
+  },
+  "unichainSepolia": {
+    "poolSwapTest": "0x83546642aCC2B2419812367A90f537d68aabC857",
+    "poolModifyLiquidityTest": "0xA27789F1D49640E392294873C0D4577000Ee5287",
+    "position": {
+      "tickLower": 208520,
+      "tickUpper": 210530,
+      "liquidity": "5502679989447",
+      "tx": "0x73c64dac0df76c2181ff4b076d80e4ba2078b32e0719b167f395a32a61895875"
+    },
+    "alignedTo": 800,
+    "testSell": {
+      "weth": "0.002",
+      "usdcOut": "1.584868",
+      "note": "price after round trip 799.99561; first read after the swap was stale, so the move percent was not read"
+    }
+  },
+  "note": "Liquidity here is ours, placed on real Uniswap v4 pools for testing. It is not market depth."
+}
