@@ -27,7 +27,7 @@ contract BellReferee is AbstractReactive {
     uint256 public constant MAX_BOOK = 6;
     uint256 public constant PULL_TIMEOUT = 300; // seconds a round may wait for its pull callbacks
     uint256 public constant MAX_ORDERS_PER_TRADER = 2; // open orders one wallet may hold, so one wallet cannot fill the book
-    uint256 public constant ORDER_TTL = 1800; // seconds an order may stay in the book. Older orders drop at the next bell
+    uint256 public constant ORDER_TTL = 900; // 15 minutes an order may stay in the book. Older orders drop at the next bell
     uint256 public constant DUST_USDC = 10_000; // 0.01 USDC, below this a remainder is refunded, not swapped
     uint256 public constant DUST_WETH = 1e12; // 1e-6 WETH, below this a remainder is refunded, not swapped
 
