@@ -39,11 +39,11 @@ function removedWord(reason: string | null): string {
   return `Removed: ${reason}`;
 }
 
-export function OrderTicket({ o, wide, children }: { o: MyOrder; wide?: boolean; children?: React.ReactNode }) {
+export function OrderTicket({ o, wide, paused, children }: { o: MyOrder; wide?: boolean; paused?: boolean; children?: React.ReactNode }) {
   const d = DESKS[o.chainId];
   const word =
     o.outcome === "settled" ? "Paid" : o.outcome === "refunded" ? "Refunded" : o.outcome === "finished" ? "Finished, see receipt" :
-    o.outcome === "cancelled" ? "Cancelled" : o.outcome === "dropped" ? removedWord(o.reason) : o.outcome === "rejected" ? "Not accepted. Cancel it to free your slot." : o.outcome === "expired" ? "Expired" :
+    o.outcome === "cancelled" ? "Cancelled" : o.outcome === "dropped" ? removedWord(o.reason) : o.outcome === "rejected" ? (paused ? "The bell is paused, so this order was not heard. Cancel it, or wait for the bell to recover." : "Not accepted. Cancel it to free your slot.") : o.outcome === "expired" ? "Expired" :
     o.step === 0 ? "Placed, waiting to be heard" : o.step === 1 ? "In the book" : "Settling";
   return (
     <article className={`ticket card bc bc-card${wide ? " wide" : ""}`} aria-label={`${o.isBuy ? "Buy" : "Sell"} ${fmtEth(o.qty)} ETH on ${d.name}`}>
