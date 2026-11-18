@@ -1,0 +1,70 @@
+// Addresses and endpoints for the final v5 set. Source of truth: deployments/bell.json.
+// No secrets here. The page reads the chains directly and has no backend.
+window.BELL = {
+  referee: "0x5269Affe9288ab7a2E7B14Aed4E0D4D1fBE396F2",
+  refereeDeployBlock: 8612861,
+  poolIdB: "0x71fba4ef34765b317417131bb7cef92bd4c43405babf9386cacdd10cf8641422",
+  lasna: { name: "Reactive Lasna", rpc: "https://lasna-rpc.rnk.dev/", explorer: "https://lasna.reactscan.net/tx/" },
+  chains: {
+    84532: {
+      key: "base", name: "Base Sepolia", rpc: "https://base-sepolia-rpc.publicnode.com", hex: "0x14a34",
+      explorer: "https://sepolia.basescan.org/tx/",
+      desk: "0x6ca550AB0aE6b2299350049F38cbDAE2767cb43E", deskDeployBlock: 60208707,
+      usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", weth: "0x4200000000000000000000000000000000000006",
+      poolManager: "0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408", tickSpacing: 20,
+    },
+    1301: {
+      key: "unichain", name: "Unichain Sepolia", rpc: "https://sepolia.unichain.org", hex: "0x515",
+      explorer: "https://sepolia.uniscan.xyz/tx/",
+      desk: "0x7B1e4FA115838EfE6D339D19CCFd2b14df8c0Eb1", deskDeployBlock: 68111184,
+      usdc: "0x31d0220469e10c4E71834a79b1f276d740d3768F", weth: "0x4200000000000000000000000000000000000006",
+      poolManager: "0x00B036B58a818B1BC34d502D3fE730Db729e62AC", tickSpacing: 10,
+    },
+  },
+  referenceChainId: 1301, // the reference pool lives on Unichain
+  poolFeePpm: 500,
+  bellEveryBlocks: 100, // Cron100
+  abi: {
+    referee: [
+      "function cronOn() view returns (bool)",
+      "function pulling() view returns (bool)",
+      "function openPrice() view returns (uint256)",
+      "function settlePrice() view returns (uint256)",
+      "function roundId() view returns (uint256)",
+      "function MAX_BOOK() view returns (uint256)",
+      "function openIds(uint256) view returns (uint256)",
+      "function orders(uint256) view returns (address trader,uint32 chainId,bool isBuy,bool open,uint48 deskOrderId,uint128 limit,uint128 qty)",
+      "event OrderAdded(uint256 indexed bookId,uint256 chainId,uint256 deskOrderId,address trader,bool isBuy)",
+      "event OrderDropped(uint256 indexed bookId,string reason)",
+      "event RoundOpened(uint256 price)",
+      "event BellVoid(string reason)",
+      "event BellRang(uint256 price,uint256 eligibleCount,uint256 pairCount)",
+      "event Unwound(uint256 failedBookId)",
+      "event Settled(uint256 price,uint256 pairCount)",
+      "event PullsExpired(uint256 indexed roundId,uint256 missing)",
+    ],
+    desk: [
+      "function place(bool isBuy,uint256 price,uint256 qty) returns (uint256)",
+      "function cancel(uint256 orderId)",
+      "function orders(uint256) view returns (address trader,bool isBuy,uint256 price,uint256 qty)",
+      "function collectedOf(uint256) view returns (uint256)",
+      "function closedOf(uint256) view returns (uint256)",
+      "function frozen(uint256) view returns (bool)",
+      "event OrderPlaced(uint256 indexed orderId,address indexed trader,bool isBuy,uint256 price,uint256 qty)",
+      "event OrderCancelled(uint256 indexed orderId,address indexed trader)",
+      "event Collected(uint256 indexed orderId,address indexed from,uint256 amount,bool ok)",
+      "event Paid(uint256 indexed orderId,address indexed to,uint256 amount,bool ok)",
+      "event Swapped(address indexed to,bool sellWeth,uint256 amountIn,uint256 amountUsed,uint256 amountOut,uint256 refunded,bool ok)",
+      "event Refunded(uint256 indexed orderId,address indexed to,uint256 amount,bool ok)",
+      "event Closed(uint256 indexed orderId,uint256 amount)",
+    ],
+    erc20: [
+      "function balanceOf(address) view returns (uint256)",
+      "function allowance(address,address) view returns (uint256)",
+      "function approve(address,uint256) returns (bool)",
+      "function deposit() payable",
+      "event Transfer(address indexed from,address indexed to,uint256 value)",
+    ],
+    poolManager: ["function extsload(bytes32) view returns (bytes32)"],
+  },
+};

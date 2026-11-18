@@ -1,0 +1,8 @@
+/* Layout only. Colors, type and spacing are the owner's design system. */
+body { font-family: system-ui, sans-serif; max-width: 960px; margin: 0 auto; padding: 16px; }
+nav button.active { font-weight: bold; }
+label { display: block; margin: 8px 0; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #ccc; }
+.note, .muted { color: #555; }
+[hidden] { display: none !important; }

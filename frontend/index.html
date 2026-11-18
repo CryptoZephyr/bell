@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bell</title>
+<!-- Behavior only. Visual design is owner-controlled: replace style.css and the markup classes freely. -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Bell</h1>
+  <p id="tagline">Swap ETH and USDC across Base and Unichain at one fair price. Testnet only.</p>
+  <nav>
+    <button data-tab="trade" class="active">Trade</button>
+    <button data-tab="round">Live round</button>
+    <button data-tab="receipt">Receipt</button>
+  </nav>
+  <div id="wallet"><button id="connect">Connect wallet</button> <span id="account"></span></div>
+</header>
+
+<main>
+  <section id="trade">
+    <h2>Trade</h2>
+    <form id="tradeForm">
+      <label>Chain
+        <select id="chain"><option value="84532">Base Sepolia</option><option value="1301">Unichain Sepolia</option></select>
+      </label>
+      <label>Side
+        <select id="side"><option value="buy">Buy ETH with USDC</option><option value="sell">Sell ETH for USDC</option></select>
+      </label>
+      <label>Amount (ETH)
+        <input id="amount" type="text" inputmode="decimal" value="0.001">
+      </label>
+      <label>Protection against the Uniswap price (%)
+        <input id="protection" type="text" inputmode="decimal" value="1">
+      </label>
+      <p id="quote"></p>
+      <p id="approvalState"></p>
+      <button type="button" id="wrap" hidden>Wrap ETH to WETH</button>
+      <button type="button" id="approve" hidden>Approve once</button>
+      <button type="submit" id="join">Join the next bell</button>
+    </form>
+    <p class="note">You'll be paid on whichever chain your match is on.</p>
+    <p id="tradeStatus" role="status"></p>
+    <h3>Your orders</h3>
+    <div id="myOrders">Connect a wallet to see your orders.</div>
+  </section>
+
+  <section id="round" hidden>
+    <h2>Live round</h2>
+    <div id="roundSummary">Loading from the chains…</div>
+    <h3>Book</h3>
+    <div id="book"></div>
+    <h3>Recent referee events</h3>
+    <div id="events"></div>
+  </section>
+
+  <section id="receipt" hidden>
+    <h2>Receipt</h2>
+    <form id="receiptForm">
+      <label>Wallet address <input id="receiptAddr" type="text" size="46" placeholder="0x…"></label>
+      <button type="submit">Show receipt</button>
+    </form>
+    <div id="receiptOut"></div>
+  </section>
+</main>
+
+<script src="vendor/ethers.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="bell.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
