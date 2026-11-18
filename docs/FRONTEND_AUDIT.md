@@ -4,6 +4,12 @@ Audit of `frontend/` at commit 4f67bf4, 18 Nov 2026, against `DESIGN_SYSTEM.md (
 
 The audit was first run on 8aadf68. The build session pushed 4f67bf4 (phone layout fixes and a new way of finding a wallet's orders) while it was running, so everything below was run again on 4f67bf4. One finding (the landing hero card missing its Bell corner) is already fixed there and is listed as fixed.
 
+## Status
+
+- H1, H2 and H3 are fixed on branch `fix/paid-truth` (PR #2). See [`audit/fix-paid-truth/`](audit/fix-paid-truth/) for the verification screenshots, and `frontend/tests/paid-truth.mjs` for the unit tests.
+- M3 is fixed in 4f67bf4.
+- Every other Medium and Low finding below is still open.
+
 ## Method
 
 - `npm ci`, typecheck and production build.

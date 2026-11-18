@@ -144,7 +144,8 @@
 .ticket-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .ticket-status { font-weight: 600; }
 .ticket-status.settled { color: var(--success-on-card); }
-.ticket-status.cancelled, .ticket-status.dropped, .ticket-status.expired { color: var(--card-muted); }
+.ticket-status.cancelled, .ticket-status.dropped, .ticket-status.expired, .ticket-status.finished { color: var(--card-muted); }
+.ticket-status.refunded { color: var(--warning-on-card); }
 .ticket-actions { display: flex; gap: 8px; }
 .btn.small { min-height: 44px; font-size: 15px; width: auto; padding: 0 16px; }
 

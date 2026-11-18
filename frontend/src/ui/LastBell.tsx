@@ -13,12 +13,14 @@ export function LastBell({ last, loading }: { last: LastRound | null; loading?: 
       </div>
     );
   }
-  const seconds = last.payoutSeconds ?? last.settleSeconds;
+  // Bell to the last confirmed payout. Until the payouts are read, say so: the Lasna settle time is shorter and would
+  // overstate the speed.
+  const seconds = last.payoutSeconds;
   return (
     <div className="inset last-bell stack">
       <div className="row between">
         <h3>Last bell</h3>
-        <span className="small muted tnum">Settled in {Math.round(seconds)} s</span>
+        <span className="small muted tnum">{seconds !== null ? `Paid out in ${Math.round(seconds)} s` : Date.now() / 1000 - last.bellTs > 100 ? "No payout found for this bell" : "Reading the payouts…"}</span>
       </div>
       <dl className="split tnum">
         <div><dt>Price</dt><dd>{fmtPrice(last.price)} USDC per ETH</dd></div>
