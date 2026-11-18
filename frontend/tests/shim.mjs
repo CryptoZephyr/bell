@@ -30,10 +30,12 @@ export async function installWallet(page, who = "buyer1", startChain = 84532) {
     const provider = {
       request: async ({ method, params }) => {
         switch (method) {
-          case "eth_requestAccounts": case "eth_accounts": return [address];
+          case "eth_requestAccounts": case "eth_accounts": return [window.__accountOverride || address];
           case "eth_chainId": return "0x" + cid.toString(16);
-          case "wallet_switchEthereumChain": cid = parseInt(params[0].chainId, 16); await window.__shimChain(cid); (subs.chainChanged || []).forEach((f) => f("0x" + cid.toString(16))); return null;
-          case "eth_sendTransaction": return window.__shimSend(params[0]);
+          case "wallet_switchEthereumChain": if (window.__rejectNext) { window.__rejectNext = false; throw Object.assign(new Error("User rejected the request."), { code: 4001 }); } cid = parseInt(params[0].chainId, 16); await window.__shimChain(cid); (subs.chainChanged || []).forEach((f) => f("0x" + cid.toString(16))); return null;
+          case "eth_sendTransaction":
+            if (window.__rejectNext) { window.__rejectNext = false; throw Object.assign(new Error("User rejected the request."), { code: 4001 }); }
+            return window.__shimSend(params[0]);
           default: throw Object.assign(new Error("Unsupported " + method), { code: -32601 });
         }
       },
