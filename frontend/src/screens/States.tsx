@@ -14,6 +14,7 @@ const base: MyOrder = { chainId: 84532, deskOrderId: 1, isBuy: true, limit: 2_45
 const TICKETS: [string, MyOrder][] = [
   ["Placed", base], ["In the book", { ...base, step: 1, inBook: true }], ["Settling", { ...base, chainId: 1301, isBuy: false, step: 2 }],
   ["Paid", { ...base, step: 3, outcome: "settled", canCancel: false }], ["Cancelled", { ...base, outcome: "cancelled", canCancel: false }],
+  ["Refunded", { ...base, step: 2, outcome: "refunded", canCancel: false }], ["Finished", { ...base, step: 2, outcome: "finished", canCancel: false }],
   ["Removed", { ...base, step: 1, outcome: "dropped", canCancel: false }], ["Expired", { ...base, step: 1, outcome: "expired", canCancel: false }],
 ];
 

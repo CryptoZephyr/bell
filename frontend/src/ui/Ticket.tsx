@@ -1,6 +1,7 @@
 // The order ticket (section 8): your order as an Ink ticket with side, amount, chain and worst price, and a four-step
 // track along the bottom: Placed, In the book, Bell, Paid. Done steps are solid Signal, the current one pulses slowly,
-// the next ones are outlines. Only the last step ever says paid, and only when the desk has closed the order.
+// the next ones are outlines. Only the last step ever says paid, and only when a payout to the trader is confirmed on a
+// desk chain (chain/payouts.ts). A refund or a closed order with unreadable logs ends the ticket without that step.
 import { ChainMark, IconCheck } from "./Icons";
 import { fmtEth, fmtPrice } from "../chain/format";
 import { DESKS } from "../chain/config";
@@ -9,11 +10,13 @@ import type { MyOrder } from "../chain/account";
 const STEPS = ["Placed", "In the book", "Bell", "Paid"] as const;
 
 export function Track({ step, outcome }: { step: 0 | 1 | 2 | 3; outcome: MyOrder["outcome"] }) {
-  const ended = outcome === "cancelled" || outcome === "dropped" || outcome === "expired";
+  const ended = outcome === "cancelled" || outcome === "dropped" || outcome === "expired" || outcome === "refunded" || outcome === "finished";
   return (
     <ol className="track" aria-label="Order progress">
       {STEPS.map((s, i) => {
-        const done = i < step || (i === step && outcome === "settled");
+        // A refunded or finished order went through the bell (its funds were pulled), so the Bell step is done. Paid stays
+        // empty unless a payout was confirmed.
+        const done = i < step || (i === step && (outcome === "settled" || outcome === "refunded" || outcome === "finished"));
         const current = i === step && outcome === "open";
         const cls = done ? "done" : current ? "current" : "next";
         return (
@@ -31,7 +34,8 @@ export function Track({ step, outcome }: { step: 0 | 1 | 2 | 3; outcome: MyOrder
 export function OrderTicket({ o, wide, children }: { o: MyOrder; wide?: boolean; children?: React.ReactNode }) {
   const d = DESKS[o.chainId];
   const word =
-    o.outcome === "settled" ? "Paid" : o.outcome === "cancelled" ? "Cancelled" : o.outcome === "dropped" ? "Removed" : o.outcome === "expired" ? "Expired" :
+    o.outcome === "settled" ? "Paid" : o.outcome === "refunded" ? "Refunded" : o.outcome === "finished" ? "Finished, see receipt" :
+    o.outcome === "cancelled" ? "Cancelled" : o.outcome === "dropped" ? "Removed" : o.outcome === "expired" ? "Expired" :
     o.step === 0 ? "Placed, waiting to be heard" : o.step === 1 ? "In the book" : "Settling";
   return (
     <article className={`ticket card bc bc-card${wide ? " wide" : ""}`} aria-label={`${o.isBuy ? "Buy" : "Sell"} ${fmtEth(o.qty)} ETH on ${d.name}`}>
