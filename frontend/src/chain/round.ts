@@ -85,10 +85,11 @@ async function lasnaSecPerBlock(head: bigint): Promise<number> {
 
 async function eventsChunked(from: bigint, to: bigint): Promise<RefEvent[]> {
   const c = client(LASNA_ID);
+  const spans: [bigint, bigint][] = [];
+  for (let f = from; f <= to; f += 500n) spans.push([f, f + 499n > to ? to : f + 499n]);
+  const parts = await Promise.all(spans.map(([f, t]) => c.getContractEvents({ address: REFEREE, abi: refereeAbi, fromBlock: f, toBlock: t })));
   const out: RefEvent[] = [];
-  for (let f = from; f <= to; f += 500n) {
-    const t = f + 499n > to ? to : f + 499n;
-    const logs = await c.getContractEvents({ address: REFEREE, abi: refereeAbi, fromBlock: f, toBlock: t });
+  for (const logs of parts) {
     for (const l of logs as any[]) {
       if (!l.eventName) continue;
       out.push({ name: l.eventName, block: l.blockNumber, tx: l.transactionHash, args: (l.args ?? {}) as Record<string, any> });
@@ -126,6 +127,16 @@ async function priceAge(head: bigint, windowEvents: RefEvent[]): Promise<number 
 export async function loadRound(): Promise<RoundSnapshot> {
   const c = client(LASNA_ID);
   const head = await c.getBlockNumber();
+  // The head is only as fresh as this moment. The reads below take seconds, so times worked out from the head start here.
+  const headAtMs = Date.now();
+  // The RPC may serve a head that is a few seconds old, so times come from the head block's own timestamp, not from the clock.
+  const headTsP = c.getBlock({ blockNumber: head }).then((b) => Number(b.timestamp) * 1000).catch(() => headAtMs);
+  // These reads do not depend on each other, so they start now and run beside the book reads. On a slow connection every
+  // round trip counts.
+  const from0 = head - 599n < REFEREE_BLOCK ? REFEREE_BLOCK : head - 599n;
+  const eventsP = eventsChunked(from0, head);
+  const refP = poolPrice(REFERENCE_CHAIN);
+  const debtP = c.readContract({ address: SYSTEM_CONTRACT, abi: systemAbi, functionName: "debts", args: [REFEREE] }).catch(() => null) as Promise<bigint | null>;
   const read = <T extends string>(fn: T) => c.readContract({ address: REFEREE, abi: refereeAbi, functionName: fn as any } as any) as Promise<any>;
 
   const [cronOn, pulling, openPrice, settlePrice, roundId, maxBook, secPerBlock, maxPerWallet, orderTtl] = await Promise.all([
@@ -149,29 +160,29 @@ export async function loadRound(): Promise<RoundSnapshot> {
     book.push({ bookId: id, trader: o[0], chainId: Number(o[1]) as DeskChainId, deskOrderId: Number(o[4]), isBuy: o[2], limit: o[5], qty: o[6], placedAt: Number(at) });
   }
 
-  const from = head - 599n < REFEREE_BLOCK ? REFEREE_BLOCK : head - 599n;
-  const events = (await eventsChunked(from, head)).sort((a, b) => Number(a.block - b.block));
+  const headMs = Math.min(await headTsP, headAtMs);
+  const events = (await eventsP).sort((a, b) => Number(a.block - b.block));
   const last = (n: RefEvent["name"]) => [...events].reverse().find((e) => e.name === n) ?? null;
   const lastBellRang = last("BellRang");
   const lastSettled = last("Settled");
   const lastVoid = last("BellVoid");
   const nowMs = Date.now();
-  const msAt = (e: RefEvent | null) => (e ? nowMs - Number(head - e.block) * secPerBlock * 1000 : null);
+  const msAt = (e: RefEvent | null) => (e ? headMs - Number(head - e.block) * secPerBlock * 1000 : null);
 
-  const ref = await poolPrice(REFERENCE_CHAIN);
+  const ref = await refP;
   const age = await priceAge(head, events).catch(() => null);
 
   // Debt stops a referee from hearing events, so it counts as paused.
   let paused = false;
   let pausedReason: string | undefined;
-  try {
-    const debt = (await c.readContract({ address: SYSTEM_CONTRACT, abi: systemAbi, functionName: "debts", args: [REFEREE] })) as bigint;
-    if (debt > 0n) { paused = true; pausedReason = "debt"; }
-  } catch { /* the system contract read is optional */ }
+  const debt = await debtP;
+  if (debt !== null && debt > 0n) { paused = true; pausedReason = "debt"; }
 
   // The next bell is the block after the next Cron100 tick.
   const blocksToTick = BELL_EVERY_BLOCKS - Number(head % BigInt(BELL_EVERY_BLOCKS));
-  const nextBellAt = cronOn || book.length > 0 ? nowMs + (blocksToTick + 1) * secPerBlock * 1000 : null;
+  // Block timestamps are whole seconds (they round down), and the reaction lands a moment after its block, so add a second.
+  // Measured on live bells: the card now runs within about 1 s of the real bell.
+  const nextBellAt = cronOn || book.length > 0 ? headMs + 1000 + (blocksToTick + 1) * secPerBlock * 1000 : null;
 
   return {
     fetchedAt: nowMs, lasnaBlock: head, secPerBlock, cronOn, pulling, openPrice, settlePrice, roundId, maxBook: Number(maxBook), maxPerWallet: Number(maxPerWallet), orderTtl: Number(orderTtl),

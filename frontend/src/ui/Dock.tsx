@@ -10,13 +10,13 @@ export function Dock({ route }: { route: Route }) {
   const { orders } = useOrders();
   const r = useRoundCtx();
   const open = (orders ?? []).filter((o) => o.outcome === "open");
-  if (open.length === 0 || route.name === "activity" || route.name === "landing" || route.name === "states") return null;
+  if (open.length === 0 || route.name === "activity" || route.name === "bell" || route.name === "states") return null;
   const o = open[0];
   const where = o.step >= 2 ? "Settling now" : o.step === 1 ? "In the book" : "Placed, waiting to be heard";
   const when = r.snap?.nextBellAt && r.secondsLeft !== null ? `Bell at ${clock(r.snap.nextBellAt)}, in ${countdown(r.secondsLeft)}` : "Next bell not set yet";
   const title = open.length > 1 ? `${open.length} open orders` : `${o.isBuy ? "Buy" : "Sell"} ${fmtEth(o.qty)} ETH`;
   return (
-    <a className="dock bc bc-card" href={href.activity} aria-label={`${title}. ${where}. ${when}. Open Activity.`}>
+    <a className="dock bc bc-card" href={href.bell} aria-label={`${title}. ${where}. ${when}. Open the live bell.`}>
       <Mark height={28} tone="fog" />
       <span className="dock-body">
         <span className="dock-title">{title}</span>

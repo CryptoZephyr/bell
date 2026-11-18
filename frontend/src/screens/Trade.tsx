@@ -113,7 +113,9 @@ export function Trade() {
     { n: 3, label: "Join the bell" },
   ];
   // Step 3 shows before an amount is typed, so a first-time trader sees the whole path.
-  const stepNow = w.status !== "connected" ? 1 : plan.stage === "approve" || plan.stage === "wrap" || plan.stage === "switch" || plan.stage === "no-token" || plan.stage === "no-gas" ? 2 : 3;
+  // Step 3 shows before an amount is typed, but only once the desk is approved. A wallet that has not approved yet is on step 2.
+  const approvedNow = (() => { const b = bal.data?.[chainId]; return b ? (isBuy ? b.allowUsdc : b.allowWeth) > 0n : false; })();
+  const stepNow = w.status !== "connected" ? 1 : plan.stage === "approve" || plan.stage === "wrap" || plan.stage === "switch" || plan.stage === "no-token" || plan.stage === "no-gas" || !approvedNow ? 2 : 3;
   void guideNow;
 
   // ---- the next bell, always shown as a clock time and a countdown ----
@@ -171,7 +173,10 @@ export function Trade() {
   } else if (plan.stage === "too-many") {
     message = <p className="field-error"><IconAlert size={18} /> You already have {r.snap?.maxPerWallet ?? 2} open orders. Cancel one, or wait for the bell, to place another.</p>;
   } else if (plan.stage === "no-price") {
-    message = <p className="field-error"><IconAlert size={18} /> We can't read the Uniswap price right now. Nothing was sent. We're retrying.</p>;
+    // Until the first read has finished or failed there is nothing to report, so no red error yet.
+    message = !r.snap && !r.error
+      ? <p className="field-hint" role="status">Reading the Uniswap price…</p>
+      : <p className="field-error"><IconAlert size={18} /> We can't read the Uniswap price right now. Nothing was sent. We're retrying.</p>;
   } else if (plan.stage === "no-token") {
     const need = plan.need ?? 0n;
     const have = plan.have ?? 0n;
@@ -215,7 +220,7 @@ export function Trade() {
           {guide.map((g) => (
             <li key={g.n} className={g.n < stepNow ? "done" : g.n === stepNow ? "now" : "next"} aria-current={g.n === stepNow ? "step" : undefined}>
               <span className="g-dot" aria-hidden="true">{g.n < stepNow ? <IconCheck size={14} /> : g.n}</span>
-              <span>{g.n === stepNow ? `Step ${g.n} of 3: ` : ""}{g.label}</span>
+              <span className="g-label">{g.n === stepNow ? `Step ${g.n} of 3: ` : ""}{g.label}</span>
             </li>
           ))}
         </ol>

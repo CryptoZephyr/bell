@@ -2,16 +2,21 @@ import { WalletProvider } from "../wallet/wallet";
 import { Announcer, Footer, Header, ShellProvider, TabBar } from "./Shell";
 import { useRoute } from "./router";
 import { RoundProvider } from "./RoundContext";
+import { lazy, Suspense } from "react";
 import { OrdersProvider } from "./OrdersContext";
 import { Dock } from "../ui/Dock";
-import { Bell } from "../screens/Bell";
-import { Trade } from "../screens/Trade";
-import { Activity } from "../screens/Activity";
-import { Receipt } from "../screens/Receipt";
-import { Landing } from "../screens/Landing";
-import { Contracts } from "../screens/Contracts";
-import { HelpScreen } from "../screens/HelpScreen";
-import { States } from "../screens/States";
+
+
+
+// Each screen is its own chunk, so the first paint only loads the shell. viem lives in the chain chunk.
+const Bell = lazy(() => import("../screens/Bell").then((m) => ({ default: m.Bell })));
+const Trade = lazy(() => import("../screens/Trade").then((m) => ({ default: m.Trade })));
+const Activity = lazy(() => import("../screens/Activity").then((m) => ({ default: m.Activity })));
+const Receipt = lazy(() => import("../screens/Receipt").then((m) => ({ default: m.Receipt })));
+const Landing = lazy(() => import("../screens/Landing").then((m) => ({ default: m.Landing })));
+const Contracts = lazy(() => import("../screens/Contracts").then((m) => ({ default: m.Contracts })));
+const HelpScreen = lazy(() => import("../screens/HelpScreen").then((m) => ({ default: m.HelpScreen })));
+const States = lazy(() => import("../screens/States").then((m) => ({ default: m.States })));
 
 function Screen({ route }: { route: ReturnType<typeof useRoute> }) {
   switch (route.name) {
@@ -39,7 +44,9 @@ export function App() {
               <a className="skip" href="#main">Skip to content</a>
               <Header route={route} />
               <main id="main" tabIndex={-1} className={wide ? "wide" : undefined}>
-                <Screen route={route} />
+                <Suspense fallback={<div className="skeleton" style={{ height: 240 }} aria-busy="true" />}>
+                  <Screen route={route} />
+                </Suspense>
               </main>
               <Footer route={route} />
               <Dock route={route} />
