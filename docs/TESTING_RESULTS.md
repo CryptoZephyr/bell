@@ -111,6 +111,8 @@ Written during the testing phase (TESTING_PHASE page in Notion, phase 3.5). Real
 | D-01-owner | 2026-11-18 | da5595f | owner's phone (device, browser and wallet app not recorded) | the project owner used the hosted app on their own phone, including a real buy of 0.0001 ETH on Base | works on a phone | Owner reported on 18 Nov 2026 that it worked: the order was placed, the bell rang and they were paid (bell tx 0xc41d840cb06d72d7513b8845d95a3b2a78a53e7e8ac9b6103a7e6a675beff800, Base pool swap 4 s after the bell), and that using it on the phone closes the device gap. Details of the phone and wallet were not captured | owner's statement, chain evidence for the order | PASS, accepted by owner in writing | Record the phone model, browser and wallet when convenient |
 | D-02-owner | 2026-11-18 | da5595f | owner's phone | same | works on a phone | Covered by the same owner run. If the phone is an iPhone this also covers D-02, which is why the details should be recorded. The Safari engine was also tested here (D-02-engine) | as above | ACCEPTED by owner | - |
 
+| BR-01 | 2026-11-18 | 912018a | n/a | GitHub default branch | main is the default | `git ls-remote --symref origin HEAD` returns refs/heads/main after the owner switched it. The old dev branch ccr-a3a2c6a3-c8kua6 points at the same commit | - | PASS | Vercel production branch is checked by the next push to main |
+
 ## Defects
 
 | ID | Severity | What | Status |
