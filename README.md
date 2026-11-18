@@ -19,13 +19,13 @@ A round-drift guard skips a round if the reference price moves more than 10% ins
 
 | Contract | Chain | Address |
 | --- | --- | --- |
-| BellReferee | Reactive Lasna (5318007) | `0x16713C0097B4c57a51326F3062E9328c067FCc0f` |
+| BellReferee (v5-rc1) | Reactive Lasna (5318007) | `0x16713C0097B4c57a51326F3062E9328c067FCc0f` |
 | BellDesk | Base Sepolia (84532) | `0xd4dcaA8D8922c95587751A3042dfFDCdDC063233` |
 | BellDesk | Unichain Sepolia (1301) | `0x9e72a8896dd5a4c15AFFFF0c408B2Bced606A3E2` |
 
 The reference pool is the Uniswap v4 USDC/WETH 0.05% pool on Unichain Sepolia, pool id `0x71fba4ef34765b317417131bb7cef92bd4c43405babf9386cacdd10cf8641422`. The pools on both chains carry liquidity of our own for testing, recorded in `deployments/pools.json`. It is test liquidity on real Uniswap v4 pools. It is not market depth.
 
-Earlier deployments are kept in `deployments/bell-v1.json` to `deployments/bell-v4.json`. The current record is `deployments/bell.json` (v5).
+The addresses above are the v5-rc1 deployment, which was built with a book limit of 12. The final v5 set is redeployed with the limit of 6 when Base Sepolia accepts transactions again. Earlier deployments are kept in `deployments/bell-v1.json` to `deployments/bell-v4.json`. The current record is `deployments/bell.json` (v5).
 
 ## Run it
 
@@ -62,7 +62,7 @@ The referee runs on reserves held by the Reactive system contract. Keep at least
 
 - Testnet only. No audit.
 - The reference price is one pool's last swap. On a thin test pool it is cheap to move. The traders' own limits and the drift guard bound the damage, they don't remove the risk.
-- The book holds at most 12 orders, sized from measured gas against the 900k reaction cap.
+- The book holds at most 6 orders. A live 8-order round needed 717,911 gas to settle against the 900k reaction cap, so the cap is set below that with headroom.
 - A failed payout or swap is reported and not retried.
 - A callback that runs out of gas has no rescue path, and neither does a desk's ETH.
 - Funds stranded on the retired v2 desks are unrecoverable: 0.806315 USDC on the Base desk and 0.001 WETH on each desk.
