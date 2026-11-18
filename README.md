@@ -4,13 +4,13 @@ Bell swaps ETH and USDC between Base and Unichain with no bridge, and pays both 
 
 Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not affiliated with Reactive Network, Uniswap, Base, Unichain or Circle · App: https://bell-gold-six.vercel.app · Demo: video link added with the submission · Code: https://github.com/CryptoZephyr/bell
 
-Judges, start here: open https://bell-gold-six.vercel.app/#/bell and watch a live round. No wallet, no login, about 2 minutes. Full docs are in [`docs/`](docs/), starting with [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
+Judges, start here: open https://bell-gold-six.vercel.app/#/bell. No wallet, no login, about 2 minutes. The screen shows the last settled round with its real timings and explorer links. A round only runs while someone has an order in the book, so a quiet market reads "Market quiet". To see one live, place a small order from a test wallet (see Trade below), or watch the demo video. Full docs are in [`docs/`](docs/), starting with [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
 
 Testnet only. Nothing here holds real money, and nothing here has been audited.
 
 ## How it works, in one paragraph
 
-A trader places an order on the desk contract of their chain. Placing moves no money. One reactive contract on Reactive Lasna, the referee, hears orders from both desks and keeps one book. About every 200 seconds, while orders exist, a timer rings the bell. The referee prices the round from the latest swap on a real Uniswap v4 pool, matches the orders whose limits allow that price, pulls each trader's funds into their desk, and pays each side on the other side's chain. Whatever has no match fills on the Uniswap pool of the trader's own chain, and never past the trader's limit.
+A trader places an order on the desk contract of their chain. Placing moves no money. One reactive contract on Reactive Lasna, the referee, hears orders from both desks and keeps one book. While orders exist, a timer rings the bell about every 110 seconds, so the first bell comes within about two minutes of the first order. The referee prices the round from the latest swap on a real Uniswap v4 pool, matches the orders whose limits allow that price, pulls each trader's funds into their desk, and pays each side on the other side's chain. Whatever has no match fills on the Uniswap pool of the trader's own chain, and never past the trader's limit.
 
 ## 3 verbs, no wallet or signup needed
 
@@ -29,11 +29,12 @@ A trader places an order on the desk contract of their chain. Placing moves no m
 | Light and dark mode | Follows your device, or pick one in the footer (on a phone, in the account sheet) | Any screen |
 | Live evidence | Every testnet gate with its transaction hashes | [`docs/EVIDENCE.md`](docs/EVIDENCE.md) |
 | Testing phase results | Every test run on the deployed build, with defects and fixes | [`docs/TESTING_RESULTS.md`](docs/TESTING_RESULTS.md) |
+| Device checklist | Steps for testing on real phones, wallet apps and screen readers | [`docs/DEVICE_TEST_CHECKLIST.md`](docs/DEVICE_TEST_CHECKLIST.md) |
 | Contract review | Our own review of both contracts, what we fixed and what we accepted | [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md) |
 
 ## Why Reactive is essential
 
-Without Reactive there is no shared book, no bell and no cross-chain settlement. Bell has no server, no keeper and no bot. Turn off every laptop and the rounds keep running.
+Without Reactive there is no shared book, no bell and no cross-chain settlement. Bell has no server, no keeper and no bot. Turn off every laptop and the rounds keep running, for as long as the referee has REACT to pay for its reactions. In our own test the referee ran out of REACT on purpose, the app showed that the bell was paused, and it recovered after a top up.
 
 - No Reactive, no shared book. The referee subscribes to both desks' `OrderPlaced` events and to the reference pool's `Swap` events, and keeps one book across two chains (`contracts/BellReferee.sol`, `configure` and `_onOrderPlaced`).
 - No Reactive, no bell. The referee subscribes to Lasna's Cron100 timer when the first order arrives and unsubscribes when the book empties, so the bell costs nothing while the market is quiet (`_onOrderPlaced`, `_bell`, `_finishRound`).
@@ -103,7 +104,7 @@ sequenceDiagram
   Note over R,DB: Any leftover is swapped on the trader's own chain's pool, capped at their limit.
 ```
 
-State lives in three places. Orders and the funds of the round being settled sit on the desks. The book, the round and the price sit on the referee. The only thing on a schedule is the Cron100 timer on Lasna, which ticks about every 200 seconds, and the referee only listens to it while orders exist. The app stores only two things, both in your own browser: your theme choice and which wallet you last connected.
+State lives in three places. Orders and the funds of the round being settled sit on the desks. The book, the round and the price sit on the referee. The only thing on a schedule is the Cron100 timer on Lasna, which ticks about every 110 seconds (100 Lasna blocks), and the referee only listens to it while orders exist. The app stores only two things, both in your own browser: your theme choice and which wallet you last connected.
 
 ## Who holds which key (or permission)
 
@@ -124,7 +125,7 @@ State lives in three places. Orders and the funds of the round being settled sit
 - If the price moves more than 10% within one bell window, the round is skipped and no money moves (`DRIFT_BPS`, test "skips the round when the pool price drifts more than 10% from the open price").
 - If one pull fails, only that order drops, and everyone else settles in the same round. If a delivery is lost, the round expires after 300 seconds and every desk refunds from its own record (tests "a lost delivery: survivors settle on the expiry bell, and the missing order is frozen and refunded" and "refunds pulls whose desk events were lost, then freezes those orders").
 - A settled or refunded order is frozen, so it can never be pulled again (test "a settled order is frozen, so it can never be pulled or cancelled again").
-- The app says Paid only after the payout transaction is confirmed on the trader's chain, and never from desk bookkeeping or the Lasna settle event (`frontend/src/chain/payouts.ts`, `frontend/tests/paid-truth.mjs`, 26 checks).
+- The app says Paid only after the payout transaction is confirmed on the trader's chain, and never from desk bookkeeping or the Lasna settle event (`frontend/src/chain/payouts.ts`, `frontend/tests/paid-truth.mjs`, 31 checks).
 - 40 random books across both chains keep every desk balanced and send no payout to a wrong address (test "random books keep the books balanced").
 
 What isn't solved is written down in [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md). The two biggest gaps: a funded wallet can still place and cancel in a loop and drain the referee's REACT, and the price is one thin pool's last swap.
@@ -162,7 +163,7 @@ The app itself needs no environment variables. It reads its addresses from `depl
 
 ## Deploying
 
-The app is a static Vite build, hosted on Vercel with `frontend` as the root directory. Every push to the main branch deploys to production, and every pull request gets a preview.
+The app is a static Vite build, hosted on Vercel with `frontend` as the root directory. Every push to the repository's default branch deploys to production, and every other branch or pull request gets a preview.
 
 The contracts deploy in a fixed order, because the desks need the referee's address and the referee needs the desks':
 
@@ -191,6 +192,8 @@ One round on the deployed contracts, on 18 Nov 2026. A seller on Base and a buye
 | 09:58:35 | Unichain Sepolia | The buyer's leftover 0.079991 USDC swapped on the pool for 0.0000999 WETH | [`0x2e8dade3…e43c76`](https://sepolia.uniscan.xyz/tx/0x2e8dade3f11feaac355ac4f3ce369330d2b2e578131e31fa43c281b447e43c76) |
 
 Bell to last payout: 5 seconds. The testing phase then ran three clean demo rounds in a row on the fixed build, with every ticket turning Paid only after its payout landed. Those runs, and every other test, are in [`docs/TESTING_RESULTS.md`](docs/TESTING_RESULTS.md).
+
+An order placed by someone outside the team confirms it from the other side. On 18 Nov 2026 the project owner placed a buy of 0.0001 ETH on Base from their own wallet through the hosted app. The bell rang 13 seconds later ([`0xc41d840c…eff800`](https://lasna.reactscan.net/tx/0xc41d840cb06d72d7513b8845d95a3b2a78a53e7e8ac9b6103a7e6a675beff800)), the desk collected 0.078519 USDC, and the Base pool paid 0.0000986726 WETH, 4 seconds after the bell.
 
 ## Repository map
 
@@ -232,7 +235,7 @@ Libraries, used as dependencies and not modified:
 
 ## License and disclaimers
 
-MIT, as declared in `package.json`. The libraries above keep their own licenses.
+MIT. See [`LICENSE`](LICENSE), and `package.json`. The libraries above keep their own licenses.
 
 Bell runs on testnets only and holds no real money. The contracts haven't been audited. Our own review is in [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md). Don't deploy this to mainnet as it is.
 
