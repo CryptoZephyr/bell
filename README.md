@@ -19,13 +19,13 @@ A round-drift guard skips a round if the reference price moves more than 10% ins
 
 | Contract | Chain | Address |
 | --- | --- | --- |
-| BellReferee (v5-rc1) | Reactive Lasna (5318007) | `0x16713C0097B4c57a51326F3062E9328c067FCc0f` |
-| BellDesk | Base Sepolia (84532) | `0xd4dcaA8D8922c95587751A3042dfFDCdDC063233` |
-| BellDesk | Unichain Sepolia (1301) | `0x9e72a8896dd5a4c15AFFFF0c408B2Bced606A3E2` |
+| BellReferee | Reactive Lasna (5318007) | `0x5269Affe9288ab7a2E7B14Aed4E0D4D1fBE396F2` |
+| BellDesk | Base Sepolia (84532) | `0x6ca550AB0aE6b2299350049F38cbDAE2767cb43E` |
+| BellDesk | Unichain Sepolia (1301) | `0x7B1e4FA115838EfE6D339D19CCFd2b14df8c0Eb1` |
 
 The reference pool is the Uniswap v4 USDC/WETH 0.05% pool on Unichain Sepolia, pool id `0x71fba4ef34765b317417131bb7cef92bd4c43405babf9386cacdd10cf8641422`. The pools on both chains carry liquidity of our own for testing, recorded in `deployments/pools.json`. It is test liquidity on real Uniswap v4 pools. It is not market depth.
 
-The addresses above are the v5-rc1 deployment, which was built with a book limit of 12. The final v5 set is redeployed with the limit of 6 when Base Sepolia accepts transactions again. Earlier deployments are kept in `deployments/bell-v1.json` to `deployments/bell-v4.json`. The current record is `deployments/bell.json` (v5).
+Earlier deployments are kept in `deployments/bell-v1.json` to `deployments/bell-v4.json` and `deployments/bell-v5-rc1.json`. The current record is `deployments/bell.json` (v5).
 
 ## Run it
 

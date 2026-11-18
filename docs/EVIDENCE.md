@@ -2,7 +2,7 @@
 
 All on testnet, 18 Nov 2026. Transactions on Lasna are at `https://lasna.reactscan.net/tx/<hash>`, on Base Sepolia at `https://sepolia.basescan.org/tx/<hash>` and on Unichain Sepolia at `https://sepolia.uniscan.xyz/tx/<hash>`. USDC amounts are written with decimals.
 
-Deployment under test (v5-rc1, contracts at commit 4f7731a, MAX_BOOK 12 at deploy): referee `0x16713C0097B4c57a51326F3062E9328c067FCc0f`, Base desk `0xd4dcaA8D8922c95587751A3042dfFDCdDC063233`, Unichain desk `0x9e72a8896dd5a4c15AFFFF0c408B2Bced606A3E2`. The final v5 set is redeployed with MAX_BOOK 6 when Base Sepolia accepts transactions again.
+Two deployments carry this evidence. V5-1 to V5-6 and gates 10 and 11 ran on v5-rc1 (contracts at commit 4f7731a, MAX_BOOK 12): referee `0x16713C0097B4c57a51326F3062E9328c067FCc0f`, Base desk `0xd4dcaA8D8922c95587751A3042dfFDCdDC063233`, Unichain desk `0x9e72a8896dd5a4c15AFFFF0c408B2Bced606A3E2`. That showed MAX_BOOK has to be 6, so the final v5 set was redeployed with it and gate 13 ran there: referee `0x5269Affe9288ab7a2E7B14Aed4E0D4D1fBE396F2`, Base desk `0x6ca550AB0aE6b2299350049F38cbDAE2767cb43E`, Unichain desk `0x7B1e4FA115838EfE6D339D19CCFd2b14df8c0Eb1`. The two sets differ only by that one constant.
 
 The pools on both chains were moved to 800 USDC per WETH and carry a position of our own, test liquidity on real Uniswap v4 pools and not market depth. See `deployments/pools.json`.
 
@@ -16,10 +16,12 @@ The pools on both chains were moved to 800 USDC per WETH and carry a position of
 | V5-5 | PASS | Cancel before the bell dropped the order with no pull | cancel (Base) `0x34800786ea084db9391284c5716bd613cdbe04e4458edefb13c7baf9ae439786`, drop `0x7751c228dbbf9ab3c8b593254e1319182e92ceebed0a516be44a7b9e7970bca6` |
 | V5-6 | Measured | Live 8 orders, 7 pairs: bell 364,590 gas, settle 717,911 gas. MAX_BOOK set to 6 | bell `0x826de8b5c375d7c011cae36e9c0b251257adad593e9efc0e3ef2c3e956ea44c0`, settle `0x0f9085c5e98e517c6ebe9e4b958482f8e0a82c7dff76f60c2f463d6c62da79d7` |
 | V5-7, gates 10 and 11 | PASS | Timer-driven bell one block after the Cron100 tick, priced and settled at the pool price at the bell (795.309095) | same round as V5-6 |
-| V5-7, gate 13 | BLOCKED | Needs buyers and sellers on both chains. Base Sepolia has not included user transactions since about Lasna block 8611000 | none yet |
+| V5-7, gate 13 | PASS (final v5) | 4 traders, buyers and sellers on both chains, 0.0005 WETH each. Bell one block after the tick at 798.136090, 2 pairs, all 4 pulls and all payouts ok, dust refunded. Bell 325,314 gas, settle 402,655 gas | bell `0x9475aa184102d2fcf2c54c84d0efd3be688394c8bff9d256c0a3bccc3627369d`, settle `0xaa811d9cc7beb0a9d5715dadf310b1ad724079d6e1fa3139e88579064b81deb9` |
 
 Gates 12 and 14 are covered by V5-2 and V5-4.
 
-Gas, local table with a stand-in system contract, worst case with the most pairs: 4 orders settle 285k, 8 orders 464k, 12 orders 644k, 16 orders 823k, 24 orders 1.18M. The live system adds about 10.6k gas per callback, which is why the live 8-order settle is 1.55 times the local number.
+Late delivery, observed live. Base Sepolia stopped including user transactions for about 2 hours. When it recovered, the stalled callbacks of the V5-4 round landed late. The order that had been frozen failed its pull. The other order's pull succeeded only because its trader's approval had just landed, and the desk then refunded the 0.8 USDC from its own record. The desk ended with 0 USDC.
+
+Gas, local table with a stand-in system contract, worst case with the most pairs: 4 orders settle 285k, 8 orders 464k, 12 orders 644k, 16 orders 823k, 24 orders 1.18M. The live system adds about 10.6k gas per callback, which is why the live 8-order settle is 1.55 times the local number. With 11k per callback added, the local table predicted 395k for the 4-order settle and the live round used 403k.
 
 Earlier evidence (gates 10 to 14 on v2 and v3, failure cases on v4) is kept in the project's test notes.
