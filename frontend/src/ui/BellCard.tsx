@@ -6,6 +6,8 @@ import { ChainMark } from "./Icons";
 import { clock, countdown, fmtPrice, ago } from "../chain/format";
 import { PRICE_STALE_SECONDS } from "../chain/config";
 import type { LegProgress, MarkState } from "../chain/round";
+import { nodeState } from "../chain/settle";
+export { roundPaidOut } from "../chain/settle";
 
 export type BellCardProps = {
   state: MarkState;
@@ -18,6 +20,10 @@ export type BellCardProps = {
   /** Seconds the last round took, for the done state. */
   doneSeconds: number | null;
   legs: LegProgress[] | null;
+  /** Lasna has settled the round, so no new payouts will be requested. */
+  settledOnLasna?: boolean;
+  /** Now, in ms, so a chain can be called quiet. */
+  now?: number;
   /** True before the first read arrives. */
   loading?: boolean;
   skippedReason?: string;
@@ -50,14 +56,6 @@ function bigFor(p: BellCardProps): { text: string; kind: "number" | "word" } {
   }
 }
 
-function nodeState(l: LegProgress | undefined): { word: string; done: boolean } {
-  if (!l) return { word: "Waiting", done: false };
-  if (l.closed > 0) return { word: "Paid", done: true };
-  if (l.paid > 0) return { word: "Paying", done: false };
-  if (l.collected > 0) return { word: "Collecting", done: false };
-  return { word: "Waiting", done: false };
-}
-
 export function BellCard(p: BellCardProps) {
   const big = bigFor(p);
   const sentence = sentenceFor(p);
@@ -65,6 +63,9 @@ export function BellCard(p: BellCardProps) {
   const showNodes = p.state === "bell" || p.state === "settling" || p.state === "done";
   const base = p.legs?.find((l) => l.chainId === 84532);
   const uni = p.legs?.find((l) => l.chainId === 1301);
+  const nowMs = p.now ?? Date.now();
+  const baseNode = nodeState(base, Boolean(p.settledOnLasna), nowMs);
+  const uniNode = nodeState(uni, Boolean(p.settledOnLasna), nowMs);
 
   if (p.loading) {
     return (
@@ -86,13 +87,13 @@ export function BellCard(p: BellCardProps) {
 
       {showNodes && (
         <div className="nodes" aria-label="Settlement on each chain">
-          <div className={`node bc bc-sheet${nodeState(base).done ? " done" : ""}`} style={{ ["--cut" as string]: "14px" }}>
+          <div className={`node bc bc-sheet${baseNode.done ? " done" : ""}`} style={{ ["--cut" as string]: "14px" }}>
             <ChainMark chain="base" size={18} />
-            <div><strong>Base</strong><span>{p.state === "done" ? "Paid" : nodeState(base).word}</span></div>
+            <div><strong>Base</strong><span>{baseNode.word}</span></div>
           </div>
-          <div className={`node node-b bc-br${nodeState(uni).done ? " done" : ""}`} style={{ ["--cut" as string]: "14px" }}>
+          <div className={`node node-b bc-br${uniNode.done ? " done" : ""}`} style={{ ["--cut" as string]: "14px" }}>
             <ChainMark chain="unichain" size={18} />
-            <div><strong>Unichain</strong><span>{p.state === "done" ? "Paid" : nodeState(uni).word}</span></div>
+            <div><strong>Unichain</strong><span>{uniNode.word}</span></div>
           </div>
         </div>
       )}
