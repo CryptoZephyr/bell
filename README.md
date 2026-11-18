@@ -5,9 +5,9 @@ Bell swaps ETH and USDC across Base and Unichain by pairing you with a trader on
 Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not affiliated with Reactive Network, Uniswap, Base, Unichain or Circle · App: https://bell-gold-six.vercel.app · Code: https://github.com/CryptoZephyr/bell
 <!-- Add "· Demo: <video link>" to the line above once the video is up. -->
 
-Judges, start here: [the 2 minute tour](#2-verbs-no-wallet-or-signup-needed), no wallet or login. Full docs at [`docs/`](docs/).
+ start here: [the 2 minute tour](#2-verbs-no-wallet-or-signup-needed) Full docs at [`docs/`](docs/).
 
-## 2 verbs, no wallet or signup needed
+## 2 verbs
 
 | Verb | What it is | Try it without an account |
 |---|---|---|
