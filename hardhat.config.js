@@ -31,7 +31,7 @@ module.exports = {
   networks: {
     hardhat: { accounts: { count: 40 } },
     baseSepolia: {
-      url: "https://sepolia.base.org",
+      url: process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org",
       chainId: 84532,
       accounts,
     },
