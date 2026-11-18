@@ -32,7 +32,21 @@ export function logClient(chainId: number): PublicClient {
   else { const d = DESKS[chainId as DeskChainId]; chain = d.chain; url = d.logRpc; span = d.logSpan; }
   c = createPublicClient({ chain, transport: http(url, { retryCount: 3, retryDelay: 600, timeout: 15_000 }) });
   const orig = c.getContractEvents.bind(c) as (a: any) => Promise<any[]>;
+  // Callers take the head block from the state RPC, which can be a block or two ahead of this log RPC. A log RPC refuses
+  // a range that ends past its own head, so clamp the end to the head this RPC has actually reached.
+  let headCache: { at: number; v: bigint } | null = null;
+  const ownHead = async () => {
+    if (headCache && Date.now() - headCache.at < 1000) return headCache.v;
+    const v = await c!.getBlockNumber();
+    headCache = { at: Date.now(), v };
+    return v;
+  };
   (c as any).getContractEvents = async (a: any) => {
+    if (typeof a.toBlock === "bigint") {
+      const h = await ownHead();
+      if (a.toBlock > h) a = { ...a, toBlock: h };
+      if (typeof a.fromBlock === "bigint" && a.fromBlock > a.toBlock) return [];
+    }
     if (typeof a.fromBlock !== "bigint" || typeof a.toBlock !== "bigint" || a.toBlock - a.fromBlock < span) return orig(a);
     const jobs: [bigint, bigint][] = [];
     for (let f = a.fromBlock; f <= a.toBlock; f += span) jobs.push([f, f + span - 1n > a.toBlock ? a.toBlock : f + span - 1n]);
