@@ -47,7 +47,7 @@ Referee:
 
 ## What the fixes do not do
 
-F1 is not solved. A funded wallet can still place and cancel in a loop, and every cycle costs the referee about 0.056 REACT. The checks make each spam order cost the attacker real funds in their wallet and remove the free case, but they add no price. On a mainnet this needs an economic cost per order (a fee or a bond) and an alarm on reserves. On this testnet it is an accepted risk, and the mitigation is operational: keep reserves above 1 REACT and watch them.
+F1 is not solved. A funded wallet can still place and cancel in a loop, and every cycle costs the referee about 0.056 REACT. The checks make each spam order cost the attacker real funds in their wallet and remove the free case, but they add no price. On a mainnet this needs an economic cost per order (a fee or a bond) and an alarm on reserves. On this testnet it is an accepted risk, and the mitigation is operational: keep reserves above 1 REACT and watch them. `scripts/watch-reserves.js` does the watching. It checks reserves and debt against a floor, and in one-shot mode it exits non-zero when they are low, so a cron job or a CI step can raise the alarm.
 
 F5 is not solved either. The price is one pool's last swap. A mainnet version needs a time-weighted price or more than one pool, and a staleness rule. A staleness rule would void most testnet rounds, because these pools are quiet, so it was left out on purpose.
 
