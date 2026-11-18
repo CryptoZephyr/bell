@@ -64,7 +64,8 @@ Two deployments carry this. The first hardened set (v6-rc1, order lifetime 30 mi
 
 - Unfunded order refused, no reserve cost: done (see above).
 - Per-wallet cap: one wallet placed 3 orders and the referee dropped the third as "too many open orders".
-- Expiry: see the test notes below.
+- Expiry, first hardened set (30 minute lifetime): two parked orders placed at Lasna blocks 8641980 and 8641985 were both dropped as "expired" in one reaction at block 8643701 (tx `0x678ffed71c4105a52648d948d5dd972e63a2922bc7b5f582a799fd04bb1fc298`), when the first was 1984 s old. The book emptied and the timer turned itself off.
+- Expiry, final set (15 minute lifetime): see the next line once it has fired.
 - A normal two-chain round on the hardened set: see the test notes.
 
 ## Not done
