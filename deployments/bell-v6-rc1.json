@@ -1,0 +1,24 @@
+{
+  "referee": "0xE0e7ee9D6aC8b05Beb2fC76c7459B00c2869C19c",
+  "refereeTx": "0xe11e4308b1888475d82b6692c205309efa4a04dfc77b08678aaa536bc8b9df1d",
+  "baseSepolia": {
+    "chainId": "84532",
+    "desk": "0xE2db2CE531Ba083A608c0c368CCF97461C522864",
+    "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "weth": "0x4200000000000000000000000000000000000006",
+    "poolManager": "0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408",
+    "tickSpacing": 20,
+    "tx": "0xa2795c17516eeba91908da448ac65a1dfbc24be6c8e8d780864f4d684d929466"
+  },
+  "unichainSepolia": {
+    "chainId": "1301",
+    "desk": "0x6669a7EC40E9A6688b7C0c0c8147c4b6a59cE2F4",
+    "usdc": "0x31d0220469e10c4E71834a79b1f276d740d3768F",
+    "weth": "0x4200000000000000000000000000000000000006",
+    "poolManager": "0x00B036B58a818B1BC34d502D3fE730Db729e62AC",
+    "tickSpacing": 10,
+    "tx": "0x8cbd3e77e2c955f17f44f372db95839d06eec0d0c7802c5aafce67348e7621a0"
+  },
+  "configureTx": "0xe41b7c7bd773e992b39d11ac5b8d00873de5852f0244068b79535163cd97c4a5",
+  "poolIdB": "0x71fba4ef34765b317417131bb7cef92bd4c43405babf9386cacdd10cf8641422"
+}

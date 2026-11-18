@@ -42,7 +42,7 @@ Desk:
 
 Referee:
 - One wallet may hold at most 2 open orders (`MAX_ORDERS_PER_TRADER`). A third is dropped as "too many open orders".
-- An order older than 30 minutes (`ORDER_TTL`, 1800 s) is dropped at the next bell as "expired", and the timer turns off if the book empties. The desk is not told. The trader can still cancel there, and the referee ignores that event.
+- An order older than 15 minutes (`ORDER_TTL`, 900 s) is dropped at the next bell as "expired", and the timer turns off if the book empties. The desk is not told. The trader can still cancel there, and the referee ignores that event.
 - The bell costs about 16k gas more for the expiry check. The worst 6-order settle is unchanged at an estimated 562k.
 
 ## What the fixes do not do
@@ -60,11 +60,11 @@ Before the hardening: 1 High (the ignored transfer), 7 Medium reentrancy and 5 u
 
 ## Live checks on the hardened set
 
-Referee `0xE0e7ee9D6aC8b05Beb2fC76c7459B00c2869C19c`, Base desk `0xE2db2CE531Ba083A608c0c368CCF97461C522864`, Unichain desk `0x6669a7EC40E9A6688b7C0c0c8147c4b6a59cE2F4`. `get_rc_health` HEALTHY with 1.5 REACT, 9 of 9 subscriptions, `check_rc_source` OK on both contracts, and the new constants read back from the deployed code.
+Two deployments carry this. The first hardened set (v6-rc1, order lifetime 30 minutes) is referee `0xE0e7ee9D6aC8b05Beb2fC76c7459B00c2869C19c`, Base desk `0xE2db2CE531Ba083A608c0c368CCF97461C522864`, Unichain desk `0x6669a7EC40E9A6688b7C0c0c8147c4b6a59cE2F4`. The owner then asked for a 15-minute lifetime, which is a constant, so the final set (v6) was redeployed: referee `0x83546642aCC2B2419812367A90f537d68aabC857`, Base desk `0x2f5666F3Db9fC20F527ABba6746001ab4DccB2b6`, Unichain desk `0x0B22446b4637c06cF61BA446096BB99cFd139bb2`. On both, `get_rc_health` was HEALTHY, subscriptions 9 of 9, `check_rc_source` OK on both contracts, and the new constants were read back from the deployed code.
 
 - Unfunded order refused, no reserve cost: done (see above).
 - Per-wallet cap: one wallet placed 3 orders and the referee dropped the third as "too many open orders".
-- Expiry after 30 minutes: see the test notes.
+- Expiry: see the test notes below.
 - A normal two-chain round on the hardened set: see the test notes.
 
 ## Not done
