@@ -29,7 +29,7 @@ module.exports = {
     ],
   },
   networks: {
-    hardhat: {},
+    hardhat: { accounts: { count: 40 } },
     baseSepolia: {
       url: "https://sepolia.base.org",
       chainId: 84532,

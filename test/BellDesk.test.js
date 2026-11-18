@@ -11,6 +11,28 @@ const TICK_SPACING = 10;
 const RAW_RATIO = 1e18 / 1200e6;
 const SQRT_PRICE_X96 = BigInt(Math.round(Math.sqrt(RAW_RATIO) * 2 ** 96));
 const CURRENT_TICK = 205410; // near log(RAW_RATIO) / log(1.0001), multiple of 10
+const MAX_SQRT = 1461446703485210103287273052203988822378723970342n; // above this the desk clamps the limit
+const FEE_PPM = 500n;
+
+function isqrt(n) {
+  if (n < 2n) return n;
+  let x = n;
+  let y = (x + 1n) / 2n;
+  while (y < x) {
+    x = y;
+    y = (x + n / y) / 2n;
+  }
+  return x;
+}
+
+// Same rule as BellReferee._sqrtLimit. A buyer swap pushes the price up, so the limit is a floor on sqrtP.
+function sqrtLimit(isBuy, limit) {
+  const cap = isBuy ? (limit * (1_000_000n - FEE_PPM)) / 1_000_000n : (limit * 1_000_000n + (1_000_000n - FEE_PPM) - 1n) / (1_000_000n - FEE_PPM);
+  const x = (10n ** 18n << 192n) / cap;
+  let s = isqrt(x);
+  if (isBuy && s * s < x) s += 1n;
+  return s;
+}
 
 async function deploySortedMocks(Mock) {
   // BellDesk needs USDC below WETH. Redeploy until the addresses sort that way.
@@ -184,7 +206,7 @@ describe("BellDesk", function () {
       await weth.mint(await desk.getAddress(), sellAmount);
       const before = await usdc.balanceOf(seller.address);
 
-      await expect(desk.connect(proxy).swapSell(referee.address, seller.address, sellAmount))
+      await expect(desk.connect(proxy).swapSell(referee.address, seller.address, sellAmount, MAX_SQRT))
         .to.emit(desk, "Swapped");
 
       const out = (await usdc.balanceOf(seller.address)) - before;
@@ -199,7 +221,7 @@ describe("BellDesk", function () {
       await usdc.mint(await desk.getAddress(), sellAmount);
       const before = await weth.balanceOf(buyer.address);
 
-      await expect(desk.connect(proxy).swapBuy(referee.address, buyer.address, sellAmount))
+      await expect(desk.connect(proxy).swapBuy(referee.address, buyer.address, sellAmount, 0))
         .to.emit(desk, "Swapped");
 
       const out = (await weth.balanceOf(buyer.address)) - before;
@@ -211,18 +233,18 @@ describe("BellDesk", function () {
 
     it("reports ok = false and moves nothing if the desk cannot pay the pool", async function () {
       const before = await usdc.balanceOf(seller.address);
-      await expect(desk.connect(proxy).swapSell(referee.address, seller.address, ethers.parseEther("0.001")))
+      await expect(desk.connect(proxy).swapSell(referee.address, seller.address, ethers.parseEther("0.001"), MAX_SQRT))
         .to.emit(desk, "Swapped")
-        .withArgs(seller.address, true, ethers.parseEther("0.001"), 0, false);
+        .withArgs(seller.address, true, ethers.parseEther("0.001"), 0, 0, 0, false);
       expect(await usdc.balanceOf(seller.address)).to.equal(before);
     });
 
     it("rejects swap calls from anyone but the callback proxy", async function () {
       await expect(
-        desk.connect(outsider).swapSell(referee.address, seller.address, 1n)
+        desk.connect(outsider).swapSell(referee.address, seller.address, 1n, 0)
       ).to.be.revertedWithCustomError(desk, "NotAuthorized");
       await expect(
-        desk.connect(outsider).swapBuy(referee.address, buyer.address, 1n)
+        desk.connect(outsider).swapBuy(referee.address, buyer.address, 1n, 0)
       ).to.be.revertedWithCustomError(desk, "NotAuthorized");
     });
 
@@ -269,6 +291,130 @@ describe("BellDesk", function () {
     it("only the callback proxy can call the accounting functions", async function () {
       await expect(desk.connect(outsider).refundOrder(referee.address, 1, false)).to.be.revertedWithCustomError(desk, "NotAuthorized");
       await expect(desk.connect(outsider).closeOrder(referee.address, 1)).to.be.revertedWithCustomError(desk, "NotAuthorized");
+    });
+  });
+  describe("limit-capped fallback swaps", function () {
+    const ONE = 10n ** 18n;
+
+    it("a buyer remainder stops at the cap, returns the unused USDC, and stays inside the limit", async function () {
+      const limit = 1_201_000000n; // pool is at 1,200, so the buyer cap leaves room for a small move only
+      const amountIn = 10_000000n;
+      await usdc.mint(await desk.getAddress(), amountIn);
+      const wethBefore = await weth.balanceOf(buyer.address);
+      const usdcBefore = await usdc.balanceOf(buyer.address);
+
+      const tx = await desk.connect(proxy).swapBuy(referee.address, buyer.address, amountIn, sqrtLimit(true, limit));
+      const rc = await tx.wait();
+      const ev = rc.logs.map((l) => { try { return desk.interface.parseLog(l); } catch { return null; } }).find((e) => e && e.name === "Swapped");
+
+      expect(ev.args.ok).to.equal(true);
+      expect(ev.args.amountUsed).to.be.greaterThan(0n);
+      expect(ev.args.amountUsed).to.be.lessThan(amountIn);
+      expect(ev.args.amountUsed + ev.args.refunded).to.equal(amountIn);
+      const out = (await weth.balanceOf(buyer.address)) - wethBefore;
+      expect(out).to.equal(ev.args.amountOut);
+      expect((await usdc.balanceOf(buyer.address)) - usdcBefore).to.equal(ev.args.refunded);
+      // All-in price paid is at or under the buyer's limit.
+      expect((ev.args.amountUsed * ONE) / out).to.be.lessThanOrEqual(limit);
+      expect(await usdc.balanceOf(await desk.getAddress())).to.equal(0);
+    });
+
+    it("a buyer remainder reports ok = false when the pool price is already above the cap", async function () {
+      const limit = 1_200_300000n; // cap 1,199.7 sits below the pool price of 1,200
+      const amountIn = 10_000000n;
+      await usdc.mint(await desk.getAddress(), amountIn);
+      await expect(desk.connect(proxy).swapBuy(referee.address, buyer.address, amountIn, sqrtLimit(true, limit)))
+        .to.emit(desk, "Swapped")
+        .withArgs(buyer.address, false, amountIn, 0, 0, 0, false);
+      expect(await usdc.balanceOf(await desk.getAddress())).to.equal(amountIn); // nothing moved
+      expect(await weth.balanceOf(buyer.address)).to.equal(0);
+    });
+
+    it("a seller remainder stops at the cap, returns the unused WETH, and stays inside the limit", async function () {
+      const limit = 1_199_000000n;
+      const amountIn = ethers.parseEther("0.01");
+      await weth.mint(await desk.getAddress(), amountIn);
+      const usdcBefore = await usdc.balanceOf(seller.address);
+      const wethBefore = await weth.balanceOf(seller.address);
+
+      const tx = await desk.connect(proxy).swapSell(referee.address, seller.address, amountIn, sqrtLimit(false, limit));
+      const rc = await tx.wait();
+      const ev = rc.logs.map((l) => { try { return desk.interface.parseLog(l); } catch { return null; } }).find((e) => e && e.name === "Swapped");
+
+      expect(ev.args.ok).to.equal(true);
+      expect(ev.args.amountUsed).to.be.greaterThan(0n);
+      expect(ev.args.amountUsed).to.be.lessThan(amountIn);
+      expect(ev.args.amountUsed + ev.args.refunded).to.equal(amountIn);
+      const out = (await usdc.balanceOf(seller.address)) - usdcBefore;
+      expect(out).to.equal(ev.args.amountOut);
+      expect((await weth.balanceOf(seller.address)) - wethBefore).to.equal(ev.args.refunded);
+      // All-in price received is at or over the seller's limit.
+      expect((out * ONE) / ev.args.amountUsed).to.be.greaterThanOrEqual(limit);
+      expect(await weth.balanceOf(await desk.getAddress())).to.equal(0);
+    });
+
+    it("a seller remainder reports ok = false when the pool price is already under the cap", async function () {
+      const limit = 1_250_000000n; // cap 1,250.6 sits above the pool price of 1,200
+      const amountIn = ethers.parseEther("0.01");
+      await weth.mint(await desk.getAddress(), amountIn);
+      await expect(desk.connect(proxy).swapSell(referee.address, seller.address, amountIn, sqrtLimit(false, limit)))
+        .to.emit(desk, "Swapped")
+        .withArgs(seller.address, true, amountIn, 0, 0, 0, false);
+      expect(await weth.balanceOf(await desk.getAddress())).to.equal(amountIn);
+    });
+
+    it("fills the whole amount when the limit is far from the pool price", async function () {
+      const amountIn = ethers.parseEther("0.0002");
+      await weth.mint(await desk.getAddress(), amountIn);
+      await expect(desk.connect(proxy).swapSell(referee.address, seller.address, amountIn, sqrtLimit(false, 100_000000n)))
+        .to.emit(desk, "Swapped");
+      expect(await weth.balanceOf(seller.address)).to.equal(ethers.parseEther("1")); // nothing refunded
+    });
+  });
+
+  describe("cancel", function () {
+    beforeEach(async function () {
+      await desk.connect(buyer).place(true, PRICE, QTY);
+      await usdc.connect(buyer).approve(await desk.getAddress(), ethers.MaxUint256);
+    });
+
+    it("lets the trader cancel, and emits OrderCancelled", async function () {
+      await expect(desk.connect(buyer).cancel(1)).to.emit(desk, "OrderCancelled").withArgs(1, buyer.address);
+      expect(await desk.frozen(1)).to.equal(true);
+    });
+
+    it("rejects a cancel from anyone but the order's trader", async function () {
+      await expect(desk.connect(outsider).cancel(1)).to.be.revertedWithCustomError(desk, "NotOrderTrader");
+      await expect(desk.connect(outsider).cancel(99)).to.be.revertedWithCustomError(desk, "NotOrderTrader");
+    });
+
+    it("rejects a second cancel, and a cancel after the order was frozen", async function () {
+      await desk.connect(buyer).cancel(1);
+      await expect(desk.connect(buyer).cancel(1)).to.be.revertedWithCustomError(desk, "AlreadyFrozen");
+    });
+
+    it("a cancel that lands before the pull wins, so the pull reports ok = false and takes nothing", async function () {
+      await desk.connect(buyer).cancel(1);
+      await expect(desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 2_400000n))
+        .to.emit(desk, "Collected")
+        .withArgs(1, buyer.address, 2_400000n, false);
+      expect(await desk.collectedOf(1)).to.equal(0);
+    });
+
+    it("a cancel after the pull is too late. The funds stay collected", async function () {
+      await desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 2_400000n);
+      await desk.connect(buyer).cancel(1); // allowed, but the funds are already in the desk
+      expect(await desk.collectedOf(1)).to.equal(2_400000n);
+    });
+
+    it("a settled order is frozen, so it can never be pulled or cancelled again", async function () {
+      await desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 2_400000n);
+      await desk.connect(proxy).closeOrder(referee.address, 1);
+      expect(await desk.frozen(1)).to.equal(true);
+      await expect(desk.connect(buyer).cancel(1)).to.be.revertedWithCustomError(desk, "AlreadyFrozen");
+      await expect(desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 1_000000n))
+        .to.emit(desk, "Collected")
+        .withArgs(1, buyer.address, 1_000000n, false);
     });
   });
 });

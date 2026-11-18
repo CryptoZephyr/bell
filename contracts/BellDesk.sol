@@ -53,7 +53,16 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
     event OrderPlaced(uint256 indexed orderId, address indexed trader, bool isBuy, uint256 price, uint256 qty);
     event Collected(uint256 indexed orderId, address indexed from, uint256 amount, bool ok);
     event Paid(uint256 indexed orderId, address indexed to, uint256 amount, bool ok);
-    event Swapped(address indexed to, bool sellWeth, uint256 amountIn, uint256 amountOut, bool ok);
+    event Swapped(
+        address indexed to,
+        bool sellWeth,
+        uint256 amountIn,
+        uint256 amountUsed,
+        uint256 amountOut,
+        uint256 refunded,
+        bool ok
+    );
+    event OrderCancelled(uint256 indexed orderId, address indexed trader);
     event Closed(uint256 indexed orderId, uint256 amount);
     event Refunded(uint256 indexed orderId, address indexed to, uint256 amount, bool ok);
 
@@ -62,6 +71,8 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
     error NotPoolManager();
     error OrderTraderMismatch();
     error CurrencyNotSorted();
+    error NotOrderTrader();
+    error AlreadyFrozen();
 
     /// @param callbackProxy_ The Reactive callback proxy on this chain.
     /// @param referee_ The referee's RVM id (the reactive contract's address on Lasna).
@@ -97,6 +108,17 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
         emit OrderPlaced(orderId, msg.sender, isBuy, price, qty);
     }
 
+    /// @notice Cancel an order before the desk pulls its funds. Only the order's trader can cancel.
+    ///         The order is frozen, so a pull that arrives later fails with ok = false. A cancel that lands
+    ///         after the pull is too late, and the trade goes through.
+    function cancel(uint256 orderId) external {
+        Order storage o = orders[orderId];
+        if (o.trader != msg.sender) revert NotOrderTrader();
+        if (frozen[orderId]) revert AlreadyFrozen();
+        frozen[orderId] = true;
+        emit OrderCancelled(orderId, msg.sender);
+    }
+
     /// @notice Pull a trader's funds into the desk. Buyers pay USDC, sellers pay WETH.
     ///         A failed pull never reverts. It emits ok = false so the referee can unwind.
     function collect(address rvmId, uint256 orderId, address trader, bool isBuy, uint256 amount)
@@ -126,6 +148,7 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
         onlyCallbackSender(rvmId)
     {
         closedOf[orderId] = collectedOf[orderId];
+        frozen[orderId] = true; // a settled order can never be pulled again
         emit Closed(orderId, collectedOf[orderId]);
     }
 
@@ -163,51 +186,69 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
     }
 
     /// @notice Sell WETH from the desk's pot into the real Uniswap v4 pool. USDC proceeds go to `to`.
-    ///         Used for a seller's unmatched remainder. A failed swap never reverts. It emits ok = false.
-    function swapSell(address rvmId, address to, uint256 amountWeth)
+    ///         Used for a seller's unmatched remainder. The swap stops at `sqrtPriceLimitX96`, and any WETH the
+    ///         pool did not take inside that limit goes back to `to`. A failed swap never reverts. It emits ok = false.
+    function swapSell(address rvmId, address to, uint256 amountWeth, uint160 sqrtPriceLimitX96)
         external
         onlyServiceProvider
         onlyCallbackSender(rvmId)
         returns (bool ok, uint256 amountOut)
     {
-        return _swap(to, false, amountWeth);
+        return _swap(to, false, amountWeth, sqrtPriceLimitX96);
     }
 
     /// @notice Sell USDC from the desk's pot into the real Uniswap v4 pool for WETH to `to`.
-    ///         Used for a buyer's unmatched remainder. A failed swap never reverts. It emits ok = false.
-    function swapBuy(address rvmId, address to, uint256 amountUsdc)
+    ///         Used for a buyer's unmatched remainder. The swap stops at `sqrtPriceLimitX96`, and any USDC the
+    ///         pool did not take inside that limit goes back to `to`. A failed swap never reverts. It emits ok = false.
+    function swapBuy(address rvmId, address to, uint256 amountUsdc, uint160 sqrtPriceLimitX96)
         external
         onlyServiceProvider
         onlyCallbackSender(rvmId)
         returns (bool ok, uint256 amountOut)
     {
-        return _swap(to, true, amountUsdc);
+        return _swap(to, true, amountUsdc, sqrtPriceLimitX96);
     }
 
     /// @dev Pool swaps run inside PoolManager.unlock. The desk settles what it owes and takes what it is owed.
-    function _swap(address to, bool zeroForOne, uint256 amountIn) internal returns (bool ok, uint256 amountOut) {
+    ///      The limit is clamped inside the pool bounds. If the pool price is already past the limit, Uniswap
+    ///      reverts, the try/catch turns that into ok = false, and the referee refunds the full amount.
+    function _swap(address to, bool zeroForOne, uint256 amountIn, uint160 limit)
+        internal
+        returns (bool ok, uint256 amountOut)
+    {
         if (amountIn == 0) revert ZeroAmount();
         if (to == address(0)) revert ZeroAddress();
-        bytes memory data = abi.encode(to, zeroForOne, amountIn);
-        try poolManager.unlock(data) returns (bytes memory res) {
-            amountOut = abi.decode(res, (uint256));
+        if (zeroForOne && limit <= TickMath.MIN_SQRT_PRICE) limit = TickMath.MIN_SQRT_PRICE + 1;
+        if (!zeroForOne && (limit == 0 || limit >= TickMath.MAX_SQRT_PRICE)) limit = TickMath.MAX_SQRT_PRICE - 1;
+        uint256 used;
+        try poolManager.unlock(abi.encode(to, zeroForOne, amountIn, limit)) returns (bytes memory res) {
+            (amountOut, used) = abi.decode(res, (uint256, uint256));
             ok = true;
         } catch {
             ok = false;
         }
-        emit Swapped(to, !zeroForOne, amountIn, amountOut, ok);
+        uint256 refunded;
+        if (ok && used < amountIn) {
+            uint256 back = amountIn - used;
+            // Report the refund only when the transfer worked, so the event never claims funds that are still here.
+            if (_call(address(zeroForOne ? usdc : weth), abi.encodeCall(IERC20.transfer, (to, back)))) {
+                refunded = back;
+            }
+        }
+        emit Swapped(to, !zeroForOne, amountIn, used, amountOut, refunded, ok);
     }
 
     /// @inheritdoc IUnlockCallback
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         if (msg.sender != address(poolManager)) revert NotPoolManager();
-        (address to, bool zeroForOne, uint256 amountIn) = abi.decode(data, (address, bool, uint256));
+        (address to, bool zeroForOne, uint256 amountIn, uint160 limit) =
+            abi.decode(data, (address, bool, uint256, uint160));
 
         SwapParams memory params = SwapParams({
             zeroForOne: zeroForOne,
             // Negative means exact input.
             amountSpecified: -int256(amountIn),
-            sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            sqrtPriceLimitX96: limit
         });
         BalanceDelta delta = poolManager.swap(poolKey, params, "");
 
@@ -226,7 +267,7 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
         // Take the output side straight to the recipient.
         if (received > 0) poolManager.take(outCurrency, to, received);
 
-        return abi.encode(received);
+        return abi.encode(received, owed);
     }
 
     /// @dev Low-level token call that tolerates tokens which return nothing or false.
