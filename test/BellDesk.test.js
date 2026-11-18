@@ -109,6 +109,7 @@ describe("BellDesk", function () {
 
   describe("place", function () {
     it("records the order and emits OrderPlaced without moving funds", async function () {
+      await usdc.connect(buyer).approve(await desk.getAddress(), ethers.MaxUint256);
       await expect(desk.connect(buyer).place(true, PRICE, QTY))
         .to.emit(desk, "OrderPlaced")
         .withArgs(1, buyer.address, true, PRICE, QTY);
@@ -128,8 +129,13 @@ describe("BellDesk", function () {
 
   describe("collect", function () {
     beforeEach(async function () {
+      // Placing needs funds and approval. The tests below then control the approval themselves.
+      await usdc.connect(buyer).approve(await desk.getAddress(), ethers.MaxUint256);
+      await weth.connect(seller).approve(await desk.getAddress(), ethers.MaxUint256);
       await desk.connect(buyer).place(true, PRICE, QTY);
       await desk.connect(seller).place(false, PRICE, QTY);
+      await usdc.connect(buyer).approve(await desk.getAddress(), 0);
+      await weth.connect(seller).approve(await desk.getAddress(), 0);
     });
 
     it("rejects callers other than the callback proxy", async function () {
@@ -258,8 +264,8 @@ describe("BellDesk", function () {
 
   describe("per-order accounting", function () {
     beforeEach(async function () {
-      await desk.connect(buyer).place(true, PRICE, QTY);
       await usdc.connect(buyer).approve(await desk.getAddress(), ethers.MaxUint256);
+      await desk.connect(buyer).place(true, PRICE, QTY);
     });
 
     it("refunds what was collected and not yet closed, exactly once", async function () {
@@ -374,8 +380,8 @@ describe("BellDesk", function () {
 
   describe("cancel", function () {
     beforeEach(async function () {
-      await desk.connect(buyer).place(true, PRICE, QTY);
       await usdc.connect(buyer).approve(await desk.getAddress(), ethers.MaxUint256);
+      await desk.connect(buyer).place(true, PRICE, QTY);
     });
 
     it("lets the trader cancel, and emits OrderCancelled", async function () {
@@ -415,6 +421,65 @@ describe("BellDesk", function () {
       await expect(desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 1_000000n))
         .to.emit(desk, "Collected")
         .withArgs(1, buyer.address, 1_000000n, false);
+    });
+  });
+  describe("placement checks (spam is rejected before it costs a reaction)", function () {
+    it("rejects an order the trader cannot pay for, and emits nothing", async function () {
+      // No approval yet.
+      await expect(desk.connect(buyer).place(true, PRICE, QTY)).to.be.revertedWithCustomError(desk, "NotFunded");
+      await expect(desk.connect(seller).place(false, PRICE, QTY)).to.be.revertedWithCustomError(desk, "NotFunded");
+      // Approved, but no balance.
+      await usdc.connect(outsider).approve(await desk.getAddress(), ethers.MaxUint256);
+      await expect(desk.connect(outsider).place(true, PRICE, QTY)).to.be.revertedWithCustomError(desk, "NotFunded");
+      expect(await desk.nextOrderId()).to.equal(1n);
+    });
+
+    it("needs approval and balance for the cost at the order's own limit price", async function () {
+      const cost = (QTY * PRICE + ethers.parseEther("1") - 1n) / ethers.parseEther("1");
+      await usdc.connect(buyer).approve(await desk.getAddress(), cost - 1n);
+      await expect(desk.connect(buyer).place(true, PRICE, QTY)).to.be.revertedWithCustomError(desk, "NotFunded");
+      await usdc.connect(buyer).approve(await desk.getAddress(), cost);
+      await expect(desk.connect(buyer).place(true, PRICE, QTY)).to.emit(desk, "OrderPlaced");
+      // A seller needs the WETH itself.
+      await weth.connect(seller).approve(await desk.getAddress(), QTY);
+      await expect(desk.connect(seller).place(false, PRICE, QTY)).to.emit(desk, "OrderPlaced");
+    });
+
+    it("rejects dust orders and values too large for the referee", async function () {
+      await usdc.connect(buyer).approve(await desk.getAddress(), ethers.MaxUint256);
+      await expect(desk.connect(buyer).place(true, PRICE, (await desk.MIN_QTY()) - 1n)).to.be.revertedWithCustomError(desk, "OrderTooSmall");
+      await expect(desk.connect(buyer).place(true, PRICE, await desk.MIN_QTY())).to.emit(desk, "OrderPlaced");
+      await expect(desk.connect(buyer).place(true, 2n ** 128n, QTY)).to.be.revertedWithCustomError(desk, "OrderTooLarge");
+      await expect(desk.connect(buyer).place(true, PRICE, 2n ** 128n)).to.be.revertedWithCustomError(desk, "OrderTooLarge");
+    });
+  });
+  describe("pull limit (the desk never pulls more than the order committed to)", function () {
+    let cost;
+    beforeEach(async function () {
+      cost = (QTY * PRICE + ethers.parseEther("1") - 1n) / ethers.parseEther("1");
+      await usdc.connect(buyer).approve(await desk.getAddress(), ethers.MaxUint256);
+      await weth.connect(seller).approve(await desk.getAddress(), ethers.MaxUint256);
+      await desk.connect(buyer).place(true, PRICE, QTY);
+      await desk.connect(seller).place(false, PRICE, QTY);
+    });
+
+    it("rejects a buyer pull above the cost at the order's own limit, even with a huge approval", async function () {
+      await expect(desk.connect(proxy).collect(referee.address, 1, buyer.address, true, cost + 1n)).to.be.revertedWithCustomError(desk, "PullExceedsOrder");
+      expect(await desk.collectedOf(1)).to.equal(0n);
+      expect(await usdc.balanceOf(await desk.getAddress())).to.equal(0n);
+      await expect(desk.connect(proxy).collect(referee.address, 1, buyer.address, true, cost)).to.emit(desk, "Collected").withArgs(1, buyer.address, cost, true);
+    });
+
+    it("rejects a seller pull above the order quantity", async function () {
+      await expect(desk.connect(proxy).collect(referee.address, 2, seller.address, false, QTY + 1n)).to.be.revertedWithCustomError(desk, "PullExceedsOrder");
+      await expect(desk.connect(proxy).collect(referee.address, 2, seller.address, false, QTY)).to.emit(desk, "Collected");
+    });
+
+    it("counts repeated pulls together, so asking twice cannot exceed the order", async function () {
+      await desk.connect(proxy).collect(referee.address, 1, buyer.address, true, cost - 1000n);
+      await expect(desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 1001n)).to.be.revertedWithCustomError(desk, "PullExceedsOrder");
+      await expect(desk.connect(proxy).collect(referee.address, 1, buyer.address, true, 1000n)).to.emit(desk, "Collected");
+      expect(await desk.collectedOf(1)).to.equal(cost);
     });
   });
 });

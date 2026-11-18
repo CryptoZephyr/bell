@@ -354,8 +354,8 @@ describe("BellReferee", function () {
     const B = chains.B;
     await observePrice();
     await place(A, buyer, true, LIMIT_HIGH, QTY);
-    await B.weth.connect(seller).approve(await B.desk.getAddress(), 0); // seller's pull will fail
     await place(B, seller, false, LIMIT_LOW, QTY);
+    await B.weth.connect(seller).approve(await B.desk.getAddress(), 0); // seller's pull will fail
 
     const sellerWethB0 = await B.weth.balanceOf(seller.address);
     const buyerUsdc0 = await A.usdc.balanceOf(buyer.address);
@@ -403,8 +403,8 @@ describe("BellReferee", function () {
     const B = chains.B;
     await observePrice();
     await place(A, buyer, true, LIMIT_HIGH, QTY);
-    await B.weth.connect(seller).approve(await B.desk.getAddress(), 0);
     await place(B, seller, false, LIMIT_LOW, QTY); // seller's pull fails, the buyer still settles
+    await B.weth.connect(seller).approve(await B.desk.getAddress(), 0);
     await ring();
     expect((await referee.orders(1)).open).to.equal(false);
     expect((await referee.orders(2)).open).to.equal(false);
@@ -808,11 +808,13 @@ describe("BellReferee", function () {
       const A = chains.A;
       const B = chains.B;
       const { buyer2 } = await extraSigners();
-      await A.usdc.mint(buyer2.address, 100_000000n); // buyer2 never approves the desk
+      await A.usdc.mint(buyer2.address, 100_000000n);
+      await A.usdc.connect(buyer2).approve(await A.desk.getAddress(), ethers.MaxUint256);
       await observePrice();
       await place(A, buyer, true, LIMIT_HIGH, QTY);
       await place(A, buyer2, true, LIMIT_HIGH, QTY);
       await place(B, seller, false, LIMIT_LOW, QTY);
+      await A.usdc.connect(buyer2).approve(await A.desk.getAddress(), 0); // buyer2's pull will fail
 
       const buyerWeth0 = await B.weth.balanceOf(buyer.address);
       const sellerUsdc0 = await A.usdc.balanceOf(seller.address);
@@ -864,10 +866,10 @@ describe("BellReferee", function () {
       const A = chains.A;
       const B = chains.B;
       await observePrice();
-      await A.usdc.connect(buyer).approve(await A.desk.getAddress(), 0);
-      await B.weth.connect(seller).approve(await B.desk.getAddress(), 0);
       await place(A, buyer, true, LIMIT_HIGH, QTY);
       await place(B, seller, false, LIMIT_LOW, QTY);
+      await A.usdc.connect(buyer).approve(await A.desk.getAddress(), 0);
+      await B.weth.connect(seller).approve(await B.desk.getAddress(), 0);
       const u0 = await A.usdc.balanceOf(buyer.address);
       const w0 = await B.weth.balanceOf(seller.address);
       await ring();
@@ -1052,6 +1054,198 @@ describe("BellReferee", function () {
       expect(dropped.length).to.equal(1);
       expect(dropped[0].args.reason).to.equal("book full");
       expect((await referee.nextBookId()) - 1n).to.equal(BigInt(max));
+    });
+  });
+  describe("random books keep the books balanced", function () {
+    // Seeded, so a failure can be replayed. Each case builds a random book on both chains, sometimes revokes
+    // one trader's approval, rings the bell, and checks the invariants a settlement must keep:
+    //  1. every token on every desk is back at its starting balance (the desks keep nothing and spend nothing),
+    //  2. the round is not left pulling,
+    //  3. every order still open is one that was not eligible at the settle price,
+    //  4. the total of each token across every known holder is unchanged, so no payout went to a wrong address.
+    function rng(seed) {
+      let a = seed >>> 0;
+      return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    it("conserves funds and leaves no eligible order behind across 40 random books", async function () {
+      const sg = await ethers.getSigners();
+      const traders = sg.slice(8, 14);
+      for (const t of traders) {
+        for (const c of [chains.A, chains.B]) {
+          await c.usdc.mint(t.address, 100_000000n);
+          await c.weth.mint(t.address, ethers.parseEther("1"));
+          await c.usdc.connect(t).approve(await c.desk.getAddress(), ethers.MaxUint256);
+          await c.weth.connect(t).approve(await c.desk.getAddress(), ethers.MaxUint256);
+        }
+      }
+      await observePrice();
+      const base = await network.provider.send("evm_snapshot");
+      let snap = base;
+
+      // Every token across every address the test knows about. A payout sent to the wrong place would shrink this.
+      const holders = [...sg.map((x) => x.address)];
+      for (const c of [chains.A, chains.B]) holders.push(await c.desk.getAddress(), await c.pm.getAddress());
+      const totals = async () => {
+        const out = [];
+        for (const c of [chains.A, chains.B]) {
+          for (const t of [c.usdc, c.weth]) {
+            let sum = 0n;
+            for (const h of holders) sum += await t.balanceOf(h);
+            out.push(sum);
+          }
+        }
+        return out;
+      };
+
+      const deskBalances = async () => {
+        const out = [];
+        for (const c of [chains.A, chains.B]) {
+          const d = await c.desk.getAddress();
+          out.push(await c.usdc.balanceOf(d), await c.weth.balanceOf(d));
+        }
+        return out;
+      };
+
+      const rand = rng(20261118);
+      let rounds = 0, failedPulls = 0, carried = 0;
+      for (let k = 0; k < 40; k++) {
+        const before = await deskBalances();
+        const totalBefore = await totals();
+        const p = await priceNow();
+        const n = 2 + Math.floor(rand() * 5); // 2 to 6 orders
+        const placedOrders = [];
+        for (let i = 0; i < n; i++) {
+          const chain = rand() < 0.5 ? chains.A : chains.B;
+          const isBuy = rand() < 0.5;
+          const qty = BigInt(1 + Math.floor(rand() * 8)) * 10n ** 14n;
+          const move = isBuy ? -0.02 + rand() * 0.07 : -0.05 + rand() * 0.07; // some limits miss the price
+          const limit = (p * BigInt(Math.round((1 + move) * 100000))) / 100000n;
+          await place(chain, traders[i], isBuy, limit, qty);
+          placedOrders.push({ chain, trader: traders[i], isBuy, limit, qty, bookId: k * 0 + i + 1 });
+        }
+        if (rand() < 0.25) {
+          const v = placedOrders[Math.floor(rand() * n)];
+          const tk = v.isBuy ? v.chain.usdc : v.chain.weth;
+          await tk.connect(v.trader).approve(await v.chain.desk.getAddress(), 0);
+          failedPulls++;
+        }
+        const r = await ring();
+        const rang = trace.flatMap((t) => refereeEvents(t, "BellRang")).length > 0;
+        if (rang) rounds++;
+
+        expect(await referee.pulling(), `case ${k}: round left pulling`).to.equal(false);
+        const after = await deskBalances();
+        for (let j = 0; j < before.length; j++) expect(after[j], `case ${k}: desk balance ${j} changed`).to.equal(before[j]);
+        const totalAfter = await totals();
+        for (let j = 0; j < totalBefore.length; j++) expect(totalAfter[j], `case ${k}: tokens left the known holders (${j})`).to.equal(totalBefore[j]);
+
+        if (rang) {
+          const P = await referee.settlePrice();
+          const first = Number(await referee.nextBookId()) - n; // book ids of this case
+          for (let i = 0; i < n; i++) {
+            const o = await referee.orders(first + i);
+            if (o.open) {
+              carried++;
+              const eligible = o.isBuy ? o.limit >= P : o.limit <= P;
+              expect(eligible, `case ${k}: an eligible order was left open`).to.equal(false);
+            }
+          }
+        }
+        void r;
+        await network.provider.send("evm_revert", [snap]);
+        snap = await network.provider.send("evm_snapshot");
+      }
+      console.log(`        40 random books: ${rounds} rounds rang, ${failedPulls} approvals revoked, ${carried} ineligible orders carried`);
+      expect(rounds).to.be.greaterThan(10);
+    });
+  });
+  describe("hardening: order cap and order lifetime", function () {
+    it("lets one wallet hold at most 2 open orders and drops the third", async function () {
+      const A = chains.A;
+      await observePrice();
+      await place(A, buyer, true, LIMIT_LOW, QTY);
+      await place(A, buyer, true, LIMIT_LOW, QTY);
+      const before = trace.length;
+      await place(A, buyer, true, LIMIT_LOW, QTY);
+      const dropped = trace.slice(before).flatMap((t) => refereeEvents(t, "OrderDropped"));
+      expect(dropped.length).to.equal(1);
+      expect(dropped[0].args.reason).to.equal("too many open orders");
+      expect(await referee.nextBookId()).to.equal(3n); // ids 1 and 2 only
+      // Another wallet is not affected.
+      await place(chains.B, seller, false, LIMIT_HIGH, QTY);
+      expect((await referee.orders(3)).open).to.equal(true);
+    });
+
+    it("frees the slot when one of the wallet's orders leaves, so the cap counts open orders only", async function () {
+      const A = chains.A;
+      await observePrice();
+      await place(A, buyer, true, LIMIT_LOW, QTY);
+      const r = await (await A.desk.connect(buyer).place(true, LIMIT_LOW, QTY)).wait();
+      await feed(r);
+      const c = await (await A.desk.connect(buyer).cancel(1)).wait();
+      await feed(c);
+      expect((await referee.orders(1)).open).to.equal(false);
+      await place(A, buyer, true, LIMIT_LOW, QTY);
+      expect((await referee.orders(3)).open).to.equal(true);
+    });
+
+    it("drops an order that sat in the book longer than ORDER_TTL, and turns the timer off if the book empties", async function () {
+      const A = chains.A;
+      await observePrice();
+      await place(A, buyer, true, LIMIT_LOW, QTY); // limit under the price, so it is never eligible
+      const ttl = Number(await referee.ORDER_TTL());
+      const r1 = await ring();
+      expect(refereeEvents(r1, "OrderDropped").length).to.equal(0); // fresh, stays
+      expect((await referee.orders(1)).open).to.equal(true);
+
+      await network.provider.send("evm_increaseTime", [ttl + 1]);
+      await network.provider.send("evm_mine");
+      const r2 = await ring();
+      const dropped = refereeEvents(r2, "OrderDropped");
+      expect(dropped.length).to.equal(1);
+      expect(dropped[0].args.reason).to.equal("expired");
+      expect((await referee.orders(1)).open).to.equal(false);
+      expect(await referee.cronOn()).to.equal(false);
+      expect(await referee.openPrice()).to.equal(0n);
+    });
+
+    it("expires only the old order, and a fresher one stays", async function () {
+      const A = chains.A;
+      const B = chains.B;
+      await observePrice();
+      const ttl = Number(await referee.ORDER_TTL());
+      await place(A, buyer, true, LIMIT_LOW, QTY);
+      await network.provider.send("evm_increaseTime", [Math.floor(ttl * 0.6)]);
+      await network.provider.send("evm_mine");
+      await place(B, seller, false, LIMIT_HIGH, QTY);
+      await network.provider.send("evm_increaseTime", [Math.floor(ttl * 0.6)]); // the first order is now older than ttl
+      await network.provider.send("evm_mine");
+      const r = await ring();
+      const dropped = refereeEvents(r, "OrderDropped");
+      expect(dropped.map((d) => d.args.reason)).to.deep.equal(["expired"]);
+      expect((await referee.orders(1)).open).to.equal(false);
+      expect((await referee.orders(2)).open).to.equal(true);
+      expect(await referee.cronOn()).to.equal(true);
+    });
+
+    it("an expired order can still be cancelled on its desk, and the referee ignores that event", async function () {
+      const A = chains.A;
+      await observePrice();
+      await place(A, buyer, true, LIMIT_LOW, QTY);
+      await network.provider.send("evm_increaseTime", [Number(await referee.ORDER_TTL()) + 1]);
+      await network.provider.send("evm_mine");
+      await ring();
+      expect((await referee.orders(1)).open).to.equal(false);
+      const c = await (await A.desk.connect(buyer).cancel(1)).wait();
+      await feed(c);
+      expect((await referee.orders(1)).open).to.equal(false);
     });
   });
 });

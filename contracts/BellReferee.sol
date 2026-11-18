@@ -26,6 +26,8 @@ contract BellReferee is AbstractReactive {
     ///      stand-in. A reaction that does not fit would also fail on the expiry retry, so the cap keeps real headroom.
     uint256 public constant MAX_BOOK = 6;
     uint256 public constant PULL_TIMEOUT = 300; // seconds a round may wait for its pull callbacks
+    uint256 public constant MAX_ORDERS_PER_TRADER = 2; // open orders one wallet may hold, so one wallet cannot fill the book
+    uint256 public constant ORDER_TTL = 1800; // seconds an order may stay in the book. Older orders drop at the next bell
     uint256 public constant DUST_USDC = 10_000; // 0.01 USDC, below this a remainder is refunded, not swapped
     uint256 public constant DUST_WETH = 1e12; // 1e-6 WETH, below this a remainder is refunded, not swapped
 
@@ -89,6 +91,7 @@ contract BellReferee is AbstractReactive {
 
     mapping(uint256 => Order) public orders;
     mapping(bytes32 => uint256) public bookIdOf; // keccak(chainId, deskOrderId) => book id
+    mapping(uint256 => uint64) public placedAt; // book id => timestamp the referee heard the order
     uint256 public nextBookId = 1;
     uint256[] public openIds; // FIFO order of the book
     bool public cronOn;
@@ -217,6 +220,14 @@ contract BellReferee is AbstractReactive {
             emit OrderDropped(0, "order too large");
             return;
         }
+        uint256 mine;
+        for (uint256 k = 0; k < openIds.length; k++) {
+            if (orders[openIds[k]].trader == trader) mine++;
+        }
+        if (mine >= MAX_ORDERS_PER_TRADER) {
+            emit OrderDropped(0, "too many open orders");
+            return;
+        }
         if (openIds.length == 0) {
             // The round opens with its first order. Anchor the drift guard to the latest price.
             openPrice = haveObservation ? _price(lastSqrtPriceX96) : 0;
@@ -238,6 +249,7 @@ contract BellReferee is AbstractReactive {
             qty: uint128(qty)
         });
         bookIdOf[keccak256(abi.encode(log.chainId, deskOrderId))] = id;
+        placedAt[id] = uint64(block.timestamp);
         openIds.push(id);
 
         // Funding watch: hear the trader's token transfers while the order is open.
@@ -355,6 +367,15 @@ contract BellReferee is AbstractReactive {
                 return;
             }
             emit BellVoid("previous round still settling");
+            return;
+        }
+        // Orders that sat in the book too long leave it, so limits parked far from the market cannot hold slots forever.
+        if (_expireStale() && openIds.length == 0) {
+            if (cronOn) {
+                SYSTEM.unsubscribe(LASNA_CHAIN_ID, CRON_CONTRACT, CRON_TOPIC, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+                cronOn = false;
+            }
+            openPrice = 0;
             return;
         }
         if (!haveObservation) {
@@ -571,6 +592,20 @@ contract BellReferee is AbstractReactive {
     }
 
     // ---------------------------------------------------------------- helpers
+
+    /// @dev Drop every order older than ORDER_TTL in one pass. Returns whether any left. The desk is not told, because
+    ///      the referee simply forgets the order and a trader can still cancel it on the desk.
+    function _expireStale() internal returns (bool any) {
+        uint256 len = openIds.length;
+        for (uint256 k = 0; k < len; k++) {
+            uint256 id = openIds[k];
+            if (block.timestamp > uint256(placedAt[id]) + ORDER_TTL) {
+                _closeOrder(id, "expired");
+                any = true;
+            }
+        }
+        if (any) _compactBook();
+    }
 
     /// @dev Remove one order and keep the FIFO list tight.
     function _drop(uint256 id, string memory reason) internal {

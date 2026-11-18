@@ -13,6 +13,8 @@ import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 
 interface IERC20 {
+    function balanceOf(address owner) external view returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
@@ -34,6 +36,9 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
 
     /// @dev Fallback pool: USDC/WETH, 0.05%, no hooks. Tick spacing is set per chain (10 on Unichain, the reference pool).
     uint24 public constant POOL_FEE = 500;
+
+    /// @notice Smallest order, in WETH wei (0.00001 WETH). Smaller orders would only take a book slot.
+    uint256 public constant MIN_QTY = 1e13;
     int24 public immutable poolTickSpacing;
 
     IERC20 public immutable usdc;
@@ -71,6 +76,12 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
     error NotPoolManager();
     error OrderTraderMismatch();
     error CurrencyNotSorted();
+    error OrderTooSmall();
+    error OrderTooLarge();
+    error NotFunded();
+    error PoolTransferFailed();
+    error PoolSettleMismatch();
+    error PullExceedsOrder();
     error NotOrderTrader();
     error AlreadyFrozen();
 
@@ -99,10 +110,19 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
         });
     }
 
-    /// @notice Record an order. No funds move. The trader must approve this desk
-    ///         for USDC (buy) or WETH (sell) before the bell, or the order drops at collect.
+    /// @notice Record an order. No funds move. The trader must hold the funds and have approved this desk
+    ///         for USDC (buy) or WETH (sell) now, and still hold them at the bell, or the order drops at collect.
+    /// @dev The checks keep spam out before it costs anything. A rejected order emits no event, so the referee
+    ///      never spends a reaction on it. A buyer needs the cost at the order's own limit price.
     function place(bool isBuy, uint256 price, uint256 qty) external returns (uint256 orderId) {
         if (price == 0 || qty == 0) revert ZeroAmount();
+        if (qty < MIN_QTY) revert OrderTooSmall();
+        if (price > type(uint128).max || qty > type(uint128).max) revert OrderTooLarge();
+        {
+            IERC20 token = isBuy ? usdc : weth;
+            uint256 need = isBuy ? (qty * price + 1e18 - 1) / 1e18 : qty;
+            if (token.balanceOf(msg.sender) < need || token.allowance(msg.sender, address(this)) < need) revert NotFunded();
+        }
         orderId = nextOrderId++;
         orders[orderId] = Order({trader: msg.sender, isBuy: isBuy, price: price, qty: qty});
         emit OrderPlaced(orderId, msg.sender, isBuy, price, qty);
@@ -134,6 +154,11 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
             emit Collected(orderId, trader, amount, false);
             return false;
         }
+        // Whatever the referee asks, the desk never pulls more than the trader committed to: a buyer's cost at the
+        // order's own limit price, a seller's quantity. This counts all pulls for the order, so asking twice cannot
+        // exceed it either.
+        uint256 maxPull = isBuy ? (o.qty * o.price + 1e18 - 1) / 1e18 : o.qty;
+        if (collectedOf[orderId] + amount > maxPull) revert PullExceedsOrder();
         IERC20 token = isBuy ? usdc : weth;
         ok = _call(address(token), abi.encodeCall(IERC20.transferFrom, (trader, address(this), amount)));
         if (ok) collectedOf[orderId] += amount;
@@ -259,10 +284,13 @@ contract BellDesk is AbstractCallback, IUnlockCallback {
         uint256 owed = uint256(uint128(-(zeroForOne ? d0 : d1)));
         uint256 received = uint256(uint128(zeroForOne ? d1 : d0));
 
-        // Settle the input side: sync, transfer into the pool, then settle.
+        // Settle the input side: sync, transfer into the pool, then settle. Both results are checked, so a token
+        // that returns false cannot leave the pool half paid.
         poolManager.sync(inCurrency);
-        IERC20(Currency.unwrap(inCurrency)).transfer(address(poolManager), owed);
-        poolManager.settle();
+        if (!_call(Currency.unwrap(inCurrency), abi.encodeCall(IERC20.transfer, (address(poolManager), owed)))) {
+            revert PoolTransferFailed();
+        }
+        if (poolManager.settle() != owed) revert PoolSettleMismatch();
 
         // Take the output side straight to the recipient.
         if (received > 0) poolManager.take(outCurrency, to, received);
