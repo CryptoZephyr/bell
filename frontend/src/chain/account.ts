@@ -32,8 +32,10 @@ export type TicketStep = 0 | 1 | 2 | 3;
  * refunded: the desk took the funds and gave them back, with no payout.
  * finished: the desk closed the order, but its payout or refund logs can no longer be read (public RPCs prune old logs),
  *   so the app can't say which. It never guesses "paid".
+ * rejected: the desk accepted the order but the referee never listed it (book full, too many open orders). The referee
+ *   emits OrderDropped(0, reason) with no order id, so the app infers this from the order still being unheard after a while.
  */
-export type OrderOutcome = "open" | "settled" | "refunded" | "finished" | "cancelled" | "dropped" | "expired";
+export type OrderOutcome = "open" | "settled" | "refunded" | "finished" | "cancelled" | "dropped" | "expired" | "rejected";
 
 export type MyOrder = {
   chainId: DeskChainId;
@@ -53,6 +55,8 @@ export type MyOrder = {
   inBook: boolean;
   canCancel: boolean;
   bookId: bigint | null;
+  /** Why the referee removed the order (funds moved, expired, pull failed), when it did. */
+  reason: string | null;
 };
 
 // Finding a wallet's orders. Old desk logs are pruned by public RPCs, so the list comes from the referee on Lasna, which
@@ -95,6 +99,8 @@ export async function blockAt(chainId: number, ts: number): Promise<bigint> {
 }
 
 const terminal = new Map<string, MyOrder>();
+/** Seconds an order may stay unheard by the referee before the app calls it refused. Lasna hears a new order in about a second. */
+const REJECT_AFTER_S = 45;
 
 export async function loadMyOrders(trader: Address): Promise<MyOrder[]> {
   const me = trader.toLowerCase();
@@ -170,9 +176,21 @@ export async function loadMyOrders(trader: Address): Promise<MyOrder[]> {
     else if (inBook) { step = 1; }
     else if (frozen) { outcome = "dropped"; }
     else if (bookId > 0n) { outcome = "dropped"; step = 1; }
+    // Never listed by the referee after a while: it was refused at entry. A late delivery would list it and flip this back.
+    else if (Date.now() / 1000 - placedTs > REJECT_AFTER_S) { outcome = "rejected"; }
+    // Why the referee removed it: the reason is on its OrderDropped event.
+    let reason: string | null = null;
+    if (outcome === "dropped" && bookId > 0n && k.lasnaBlock !== null) {
+      try {
+        const lh = await lasna.getBlockNumber();
+        const logs = (await logClient(LASNA_ID).getContractEvents({ address: REFEREE, abi: refereeAbi, eventName: "OrderDropped", args: { bookId }, fromBlock: k.lasnaBlock, toBlock: lh })) as any[];
+        reason = logs[0] ? String(logs[0].args.reason) : null;
+      } catch { /* the reason is a nicety, the outcome stands without it */ }
+      if (reason && /expired/i.test(reason)) outcome = "expired";
+    }
     const row: MyOrder = {
       chainId: k.chainId, deskOrderId: Number(orderId), isBuy: o[1], limit: o[2], qty: o[3], tx: k.tx, block: k.block, placedTs,
-      step, outcome, inBook, canCancel: outcome === "open" && collected === 0n && !frozen, bookId: bookId > 0n ? bookId : null,
+      step, outcome, inBook, canCancel: (outcome === "open" || outcome === "rejected") && collected === 0n && !frozen, bookId: bookId > 0n ? bookId : null, reason,
     };
     // Remember finished orders, but keep re-reading a paid or refunded one while more legs of its round may still land
     // (a match payout and a pool fill for the same order can arrive seconds apart), and keep re-reading "finished"
