@@ -93,8 +93,12 @@ export function Receipt({ chainId, orderId }: { chainId: number; orderId: number
           <section className="card bc bc-card receipt-hero" aria-label="Summary">
             {ended ? (
               <>
-                <h2 className="receipt-head">{order.outcome === "cancelled" ? "Cancelled" : order.outcome === "expired" ? "Expired" : order.outcome === "dropped" ? "Removed from the book" : "Not settled yet"}</h2>
-                <p className="muted">{order.outcome === "open" ? "This receipt fills in once the order is paid." : "Nothing was taken from your wallet for this order."}</p>
+                <h2 className="receipt-head">{order.outcome === "cancelled" ? "Cancelled" : order.outcome === "expired" ? "Expired" : order.outcome === "dropped" ? "Removed from the book" : order.outcome === "refunded" ? "Refunded" : order.outcome === "finished" ? "Finished" : "Not settled yet"}</h2>
+                <p className="muted">{
+                  order.outcome === "open" ? (rc.gave > 0n ? "Your funds are with the desk for this bell. This receipt fills in once the payout lands." : "This receipt fills in once the order is paid.")
+                  : order.outcome === "refunded" ? `The desk took ${amt(rc.gaveToken, rc.gave)} for this bell and gave it back. No trade happened.`
+                  : order.outcome === "finished" ? "The desk closed this order, but its payout records are too old to read now. Check the desk on the block explorer."
+                  : "Nothing was taken from your wallet for this order."}</p>
               </>
             ) : (
               <>
@@ -120,7 +124,7 @@ export function Receipt({ chainId, orderId }: { chainId: number; orderId: number
               {rc.collectTx && <Step chainId={order.chainId} tx={rc.collectTx} title="Your funds moved to the desk for this bell" />}
               {rc.legs.map((l) => <Step key={l.tx + l.kind} chainId={l.chainId} tx={l.tx} title={l.kind === "pool" ? "Pool fill" : l.kind === "refund" ? "Returned" : l.kind === "dust" ? "Rounding" : "Match payout"} text={legWords(l)} />)}
               {rc.closeTx && <Step chainId={order.chainId} tx={rc.closeTx} title="The desk closed your order" />}
-              {rc.endTx && order.outcome !== "settled" && <Step chainId={LASNA_ID} tx={rc.endTx} title="The order left the book" text={rc.endReason ?? undefined} />}
+              {rc.endTx && order.outcome !== "settled" && order.outcome !== "refunded" && <Step chainId={LASNA_ID} tx={rc.endTx} title="The order left the book" text={rc.endReason ?? undefined} />}
             </ol>
           </section>
         </>
