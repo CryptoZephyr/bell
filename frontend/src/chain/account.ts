@@ -3,6 +3,7 @@ import { encodeAbiParameters, keccak256, type Address, type Hex } from "viem";
 import { client, logClient } from "./clients";
 import { deskAbi, erc20Abi, refereeAbi } from "./abi";
 import { DESKS, DESK_CHAIN_IDS, LASNA_ID, REFEREE, REFEREE_BLOCK, type DeskChainId } from "./config";
+import { decideOutcome, loadOrderLegs } from "./payouts";
 
 export type ChainBalances = { usdc: bigint; weth: bigint; eth: bigint; allowUsdc: bigint; allowWeth: bigint };
 export type Balances = Record<DeskChainId, ChainBalances>;
@@ -26,7 +27,13 @@ export async function loadBalances(addr: Address): Promise<Balances> {
 
 /** The four steps of an order ticket: Placed, In the book, Bell, Paid. */
 export type TicketStep = 0 | 1 | 2 | 3;
-export type OrderOutcome = "open" | "settled" | "cancelled" | "dropped" | "expired";
+/**
+ * settled: a payout in the token the trader asked for is confirmed on a desk chain.
+ * refunded: the desk took the funds and gave them back, with no payout.
+ * finished: the desk closed the order, but its payout or refund logs can no longer be read (public RPCs prune old logs),
+ *   so the app can't say which. It never guesses "paid".
+ */
+export type OrderOutcome = "open" | "settled" | "refunded" | "finished" | "cancelled" | "dropped" | "expired";
 
 export type MyOrder = {
   chainId: DeskChainId;
@@ -149,8 +156,16 @@ export async function loadMyOrders(trader: Address): Promise<MyOrder[]> {
 
     let outcome: OrderOutcome = "open";
     let step: TicketStep = 0;
-    if (closed > 0n && closed === collected) { outcome = "settled"; step = 3; }
-    else if (collected > 0n) { step = 2; }
+    // Settled only when a payout to this trader is confirmed. The desk closing the order proves nothing on its own,
+    // because a refund closes it the same way.
+    let lastLegTs: number | null = null;
+    if (collected > 0n) {
+      step = 2;
+      const ol = await loadOrderLegs({ chainId: k.chainId, deskOrderId: Number(orderId), isBuy: o[1], placedTs }, trader).catch(() => null);
+      if (ol) lastLegTs = ol.legs.length ? ol.legs[ol.legs.length - 1].ts : null;
+      outcome = decideOutcome({ collected, closed, legs: ol, placedTs, nowS: Date.now() / 1000 });
+      if (outcome === "settled") step = 3;
+    }
     else if (cancelled) { outcome = "cancelled"; }
     else if (inBook) { step = 1; }
     else if (frozen) { outcome = "dropped"; }
@@ -159,7 +174,11 @@ export async function loadMyOrders(trader: Address): Promise<MyOrder[]> {
       chainId: k.chainId, deskOrderId: Number(orderId), isBuy: o[1], limit: o[2], qty: o[3], tx: k.tx, block: k.block, placedTs,
       step, outcome, inBook, canCancel: outcome === "open" && collected === 0n && !frozen, bookId: bookId > 0n ? bookId : null,
     };
-    if (outcome !== "open") terminal.set(key, row);
+    // Remember finished orders, but keep re-reading a paid or refunded one while more legs of its round may still land
+    // (a match payout and a pool fill for the same order can arrive seconds apart), and keep re-reading "finished"
+    // in case the RPC catches up.
+    const quiet = lastLegTs === null || Date.now() / 1000 - lastLegTs > 60;
+    if (outcome === "cancelled" || outcome === "dropped" || ((outcome === "settled" || outcome === "refunded") && quiet)) terminal.set(key, row);
     return row;
   }));
   return rows.filter((r): r is MyOrder => r !== null).sort((a, b) => b.placedTs - a.placedTs);

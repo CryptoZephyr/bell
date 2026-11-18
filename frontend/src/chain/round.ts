@@ -248,11 +248,13 @@ export async function loadLastRound(bell: RefEvent, settled: RefEvent): Promise<
       const lookback = BigInt(Math.ceil((nowS - bellTs + 40) / bt));
       const fromBlock = block0(head - lookback);
       const logs = await logClient(id).getContractEvents({ address: DESKS[id].desk, abi: deskAbi, fromBlock, toBlock: head });
-      const legs = (logs as any[]).filter((l) => ["Paid", "Swapped", "Refunded", "Closed"].includes(l.eventName));
+      // Only confirmed payouts count: a Paid or a pool Swapped that worked. A desk closing an order, or a refund, is not a
+      // payout, and nothing before the bell belongs to this round.
+      const legs = (logs as any[]).filter((l) => (l.eventName === "Paid" || l.eventName === "Swapped") && l.args?.ok === true);
       let lastTs = 0;
       for (const l of legs) {
         const ts = Number((await c.getBlock({ blockNumber: l.blockNumber })).timestamp);
-        if (ts >= bellTs - 2 && ts <= bellTs + 90 && ts > lastTs) lastTs = ts;
+        if (ts >= bellTs && ts <= bellTs + 90 && ts > lastTs) lastTs = ts;
       }
       if (lastTs) out.payouts.push({ chainId: id, seconds: lastTs - bellTs });
     } catch { /* a chain that cannot be read just has no leg shown */ }
@@ -263,23 +265,35 @@ export async function loadLastRound(bell: RefEvent, settled: RefEvent): Promise<
 
 // ---- progress of the round that is settling right now, from the desks' own events ---------------------------
 
-export type LegProgress = { chainId: DeskChainId; collected: number; paid: number; closed: number };
+/**
+ * What one desk has confirmed since the bell. payouts counts only Paid and Swapped events that worked. refunds counts
+ * Refunded events that worked. lastTs is the newest of these, so the card can tell when a chain has gone quiet.
+ */
+export type LegProgress = { chainId: DeskChainId; collected: number; payouts: number; refunds: number; closed: number; lastTs: number | null };
 
 /** What each desk has done since the bell rang. Drives the Base and Unichain nodes while settling. */
 export async function loadLegProgress(sinceMs: number): Promise<LegProgress[]> {
   const nowS = Date.now() / 1000;
   return Promise.all(DESK_CHAIN_IDS.map(async (id) => {
-    const out: LegProgress = { chainId: id, collected: 0, paid: 0, closed: 0 };
+    const out: LegProgress = { chainId: id, collected: 0, payouts: 0, refunds: 0, closed: 0, lastTs: null };
     try {
       const c = client(id);
       const bt = await blockTime(id);
       const head = await c.getBlockNumber();
       const lookback = BigInt(Math.ceil((nowS - sinceMs / 1000 + 20) / bt));
       const logs = await logClient(id).getContractEvents({ address: DESKS[id].desk, abi: deskAbi, fromBlock: block0(head - lookback), toBlock: head });
+      const sinceS = sinceMs / 1000;
       for (const l of logs as any[]) {
-        if (l.eventName === "Collected") out.collected++;
-        else if (l.eventName === "Paid" || l.eventName === "Swapped" || l.eventName === "Refunded") out.paid++;
-        else if (l.eventName === "Closed") out.closed++;
+        const counts = l.eventName === "Collected" ? (l.args?.ok === true ? "collected" : null)
+          : (l.eventName === "Paid" || l.eventName === "Swapped") ? (l.args?.ok === true ? "payouts" : null)
+          : l.eventName === "Refunded" ? (l.args?.ok === true ? "refunds" : null)
+          : l.eventName === "Closed" ? "closed" : null;
+        if (!counts) continue;
+        // The lookback and the bell time are both estimates from block times, so allow a few seconds of slack.
+        const ts = Number((await c.getBlock({ blockNumber: l.blockNumber })).timestamp);
+        if (ts < sinceS - 10) continue;
+        out[counts]++;
+        if (counts !== "collected" && counts !== "closed") out.lastTs = Math.max(out.lastTs ?? 0, ts);
       }
     } catch { /* an unreadable chain shows no progress, never a wrong one */ }
     return out;

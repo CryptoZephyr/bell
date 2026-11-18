@@ -61,20 +61,35 @@ function smoothNextBell(prev: RoundSnapshot | null, next: RoundSnapshot): RoundS
   return next;
 }
 
-/** The last settled round, with real payout seconds. Loaded once per round. */
+/**
+ * The last settled round, with real payout seconds. Payouts land on Base and Unichain a few seconds after Lasna settles,
+ * so this keeps re-reading on each poll until the bell is old enough that no more payouts can arrive. Reading it once,
+ * the moment Lasna settled, would miss the payouts.
+ */
 export function useLastRound(snap: RoundSnapshot | null): LastRound | null {
   const [last, setLast] = useState<LastRound | null>(null);
   const key = useRef<string>("");
+  const final = useRef(false);
+  const busy = useRef(false);
   useEffect(() => {
     const bell = snap?.lastBellRang;
     const settled = snap?.lastSettled;
     if (!bell || !settled || settled.block < bell.block) return;
     const k = `${bell.tx}:${settled.tx}`;
-    if (key.current === k) return;
-    key.current = k;
-    let alive = true;
-    loadLastRound(bell, settled).then((r) => { if (alive) setLast(r); }).catch(() => { key.current = ""; });
-    return () => { alive = false; };
-  }, [snap?.lastBellRang, snap?.lastSettled]);
+    if (key.current !== k) { key.current = k; final.current = false; }
+    if (final.current || busy.current) return;
+    busy.current = true;
+    loadLastRound(bell, settled)
+      .then((r) => {
+        if (key.current !== k) return;
+        setLast(r);
+        if (Date.now() / 1000 - r.bellTs > LAST_ROUND_SETTLE_S) final.current = true;
+      })
+      .catch(() => { /* try again on the next poll */ })
+      .finally(() => { busy.current = false; });
+  }, [snap]);
   return last;
 }
+
+/** After this many seconds past the bell, every payout of that round has landed or never will. */
+const LAST_ROUND_SETTLE_S = 100;
