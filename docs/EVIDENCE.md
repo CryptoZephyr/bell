@@ -18,6 +18,8 @@ The pools on both chains were moved to 800 USDC per WETH and carry a position of
 | V5-6 live, 6 orders | PASS | The new book limit, run live on the final set: 4 traders, both chains, 6 eligible, 5 pairs, 1 pool remainder swap, all pulls and payouts ok, 6 orders closed. Bell 319,327 gas, settle 577,320 gas (64% of the 900k cap) | bell `0x09d23700d3144214e778f4541de6b1dd466b0cefc1008d08425f395e85497143`, settle `0x16255e2072d0440c892ecf8f2f4d794604aaf0d18a1947874b0bcb1b2fb06f58` |
 | V5-7, gates 10 and 11 | PASS | Timer-driven bell one block after the Cron100 tick, priced and settled at the pool price at the bell (795.309095) | same round as V5-6 |
 | V5-7, gate 13 | PASS (final v5) | 4 traders, buyers and sellers on both chains, 0.0005 WETH each. Bell one block after the tick at 798.136090, 2 pairs, all 4 pulls and all payouts ok, dust refunded. Bell 325,314 gas, settle 402,655 gas | bell `0x9475aa184102d2fcf2c54c84d0efd3be688394c8bff9d256c0a3bccc3627369d`, settle `0xaa811d9cc7beb0a9d5715dadf310b1ad724079d6e1fa3139e88579064b81deb9` |
+| Gate 16 | PASS | Three demo runs on the final set, by script. Base buyer, Unichain seller, one match plus a pool-filled leftover. Bell to first pull 1 to 2 s, bell to last payout 5 to 6 s, Lasna settled 2 s after the bell | run 1 bell `0x96ad9e61f4fc40c20bbf4a689143c000659f4fce38e6bbbdc8ebf206b2d92d85`, run 2 bell `0x1bb5b7f7be9d649881d4d491d0fb071ec98bf3bfb4ebd2781d4ef877c77e777c`, run 3 bell `0x6c79e4fa9d402c65f9c484cb7e8f375cd9909a28f30a0b0ae8cc27097eff06d8` |
+| Gate 15 | NOT RUN | Frontend truth. Frontend work is on hold by the owner's instruction | none |
 
 Gates 12 and 14 are covered by V5-2 and V5-4.
 
@@ -26,3 +28,5 @@ Late delivery, observed live. Base Sepolia stopped including user transactions f
 Gas, local table with a stand-in system contract, worst case with the most pairs: 4 orders settle 285k, 8 orders 464k, 12 orders 644k, 16 orders 823k, 24 orders 1.18M. The live system adds about 10.6k gas per callback, which is why the live 8-order settle is 1.55 times the local number. With 11k per callback added, the local table predicted 395k for the 4-order settle and the live round used 403k. For the 6-order book the estimate was about 562k for the worst case and the live round used 577k, 3% above it, so the estimate is good to a few percent and the 900k cap still has 36% headroom at 6 orders.
 
 Earlier evidence (gates 10 to 14 on v2 and v3, failure cases on v4) is kept in the project's test notes.
+
+Demo run latency (block timestamps, good to about 2 s because the chain clocks differ): run 1 first pull 1 s, last payout 5 s. Runs 2 and 3 first pull 2 s, last payout 6 s. In run 1 the Base pool filled the leftover at about 820 per ETH because earlier buyer leftovers had pushed our thin pool up. The pool was re-aligned to the reference before runs 2 and 3, which filled at about 799. Measured with `scripts/latency-v5.js`.
