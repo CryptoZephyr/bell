@@ -1,6 +1,6 @@
 // The live round, read from the chains. Nothing here is invented: every number is chain state or derived from it.
 import type { Address, Hex } from "viem";
-import { client } from "./clients";
+import { client, logClient } from "./clients";
 import { refereeAbi, deskAbi, systemAbi } from "./abi";
 import {
   BELL_EVERY_BLOCKS, DESKS, DESK_CHAIN_IDS, LASNA_ID, REFERENCE_CHAIN, REFEREE, REFEREE_BLOCK,
@@ -247,7 +247,7 @@ export async function loadLastRound(bell: RefEvent, settled: RefEvent): Promise<
       const head = await c.getBlockNumber();
       const lookback = BigInt(Math.ceil((nowS - bellTs + 40) / bt));
       const fromBlock = block0(head - lookback);
-      const logs = await c.getContractEvents({ address: DESKS[id].desk, abi: deskAbi, fromBlock, toBlock: head });
+      const logs = await logClient(id).getContractEvents({ address: DESKS[id].desk, abi: deskAbi, fromBlock, toBlock: head });
       const legs = (logs as any[]).filter((l) => ["Paid", "Swapped", "Refunded", "Closed"].includes(l.eventName));
       let lastTs = 0;
       for (const l of legs) {
@@ -275,7 +275,7 @@ export async function loadLegProgress(sinceMs: number): Promise<LegProgress[]> {
       const bt = await blockTime(id);
       const head = await c.getBlockNumber();
       const lookback = BigInt(Math.ceil((nowS - sinceMs / 1000 + 20) / bt));
-      const logs = await c.getContractEvents({ address: DESKS[id].desk, abi: deskAbi, fromBlock: block0(head - lookback), toBlock: head });
+      const logs = await logClient(id).getContractEvents({ address: DESKS[id].desk, abi: deskAbi, fromBlock: block0(head - lookback), toBlock: head });
       for (const l of logs as any[]) {
         if (l.eventName === "Collected") out.collected++;
         else if (l.eventName === "Paid" || l.eventName === "Swapped" || l.eventName === "Refunded") out.paid++;

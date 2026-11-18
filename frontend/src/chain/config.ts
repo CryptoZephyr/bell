@@ -22,6 +22,9 @@ export type DeskChain = {
   name: string;
   chain: Chain;
   rpc: string;
+  /** The RPC used for log queries, and the most blocks it allows in one query. State reads use `rpc`. */
+  logRpc: string;
+  logSpan: bigint;
   explorer: string;
   explorerName: string;
   desk: Address;
@@ -49,6 +52,7 @@ export const DESKS: Record<DeskChainId, DeskChain> = {
   84532: {
     id: 84532, key: "base", name: "Base Sepolia", chain: baseSepolia,
     rpc: "https://base-sepolia-rpc.publicnode.com",
+    logRpc: "https://base-sepolia-rpc.publicnode.com", logSpan: 9000n,
     explorer: "https://sepolia.basescan.org", explorerName: "Basescan",
     desk: r.baseSepolia.desk, deskBlock: BigInt(r.baseSepolia.block),
     usdc: r.baseSepolia.usdc, weth: r.baseSepolia.weth, poolManager: r.baseSepolia.poolManager, tickSpacing: r.baseSepolia.tickSpacing,
@@ -57,7 +61,9 @@ export const DESKS: Record<DeskChainId, DeskChain> = {
   },
   1301: {
     id: 1301, key: "unichain", name: "Unichain Sepolia", chain: unichainSepolia,
-    rpc: "https://unichain-sepolia-rpc.publicnode.com", // the official RPC allows only 1000 blocks per log query
+    rpc: "https://unichain-sepolia-rpc.publicnode.com", // reads: fresh right after a transaction
+    // Logs: publicnode prunes Unichain history after about 20,000 blocks. The official RPC keeps days, at 1000 blocks per query.
+    logRpc: "https://sepolia.unichain.org", logSpan: 1000n,
     explorer: "https://sepolia.uniscan.xyz", explorerName: "Uniscan",
     desk: r.unichainSepolia.desk, deskBlock: BigInt(r.unichainSepolia.block),
     usdc: r.unichainSepolia.usdc, weth: r.unichainSepolia.weth, poolManager: r.unichainSepolia.poolManager, tickSpacing: r.unichainSepolia.tickSpacing,

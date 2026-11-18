@@ -234,7 +234,7 @@ export function Trade() {
           {DESK_CHAIN_IDS.map((id) => {
             const c = DESKS[id];
             const b = bal.data?.[id];
-            const shown = b ? (isBuy ? `${fmtUsdc(b.usdc)} USDC` : `${fmtEth(b.weth)} ETH`) : "Connect to see your balance";
+            const shown = b ? (isBuy ? `${fmtUsdc(b.usdc)} USDC` : `${fmtEth(b.weth)} ETH`) : "Connect to see balance";
             return (
               <label key={id} className="chain-card bc bc-card" style={{ ["--cut" as string]: "20px" }}>
                 <input type="radio" name="chain" checked={chainId === id} onChange={() => setChainId(id)} />
@@ -285,7 +285,7 @@ export function Trade() {
           <p className="field-warn" role="note"><IconAlert size={18} /> The Uniswap price is {Math.round(r.snap.priceAgeSeconds / 60)} minutes old. Nobody has traded the pool since, so the bell may be skipped.</p>
         )}
 
-        <div className="stack">
+        <div className={`stack trade-actions${qty !== null ? " pin" : ""}`}>
           {control}
           {message}
           {errorLine}

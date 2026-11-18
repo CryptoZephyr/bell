@@ -13,25 +13,35 @@ export function client(chainId: number): PublicClient {
       const d = DESKS[chainId as DeskChainId];
       c = createPublicClient({ chain: d.chain, transport: http(d.rpc, { retryCount: 3, retryDelay: 600, timeout: 12_000 }) });
     }
-    chunkEvents(c);
     cache.set(chainId, c);
   }
   return c;
 }
 
-const SPAN = 9000n; // public RPCs cap a log query at 10,000 blocks or fewer
+const logCache = new Map<number, PublicClient>();
 
-/** Public RPCs refuse wide log queries. This splits any long range into spans they accept and runs a few at a time. */
-function chunkEvents(c: PublicClient) {
+/** A client for log queries. Public RPCs refuse wide log queries, so any long range is split into spans the RPC accepts,
+ *  a few at a time. State reads use `client()`, because some RPCs serve stale state right after a transaction. */
+export function logClient(chainId: number): PublicClient {
+  let c = logCache.get(chainId);
+  if (c) return c;
+  let url: string | undefined;
+  let span = 9500n; // Lasna allows about 10,000 blocks
+  let chain;
+  if (chainId === LASNA_ID) { chain = lasna; }
+  else { const d = DESKS[chainId as DeskChainId]; chain = d.chain; url = d.logRpc; span = d.logSpan; }
+  c = createPublicClient({ chain, transport: http(url, { retryCount: 3, retryDelay: 600, timeout: 15_000 }) });
   const orig = c.getContractEvents.bind(c) as (a: any) => Promise<any[]>;
   (c as any).getContractEvents = async (a: any) => {
-    if (typeof a.fromBlock !== "bigint" || typeof a.toBlock !== "bigint" || a.toBlock - a.fromBlock < SPAN) return orig(a);
+    if (typeof a.fromBlock !== "bigint" || typeof a.toBlock !== "bigint" || a.toBlock - a.fromBlock < span) return orig(a);
     const jobs: [bigint, bigint][] = [];
-    for (let f = a.fromBlock; f <= a.toBlock; f += SPAN) jobs.push([f, f + SPAN - 1n > a.toBlock ? a.toBlock : f + SPAN - 1n]);
+    for (let f = a.fromBlock; f <= a.toBlock; f += span) jobs.push([f, f + span - 1n > a.toBlock ? a.toBlock : f + span - 1n]);
     const out: any[][] = new Array(jobs.length);
     let next = 0;
     const worker = async () => { while (next < jobs.length) { const i = next++; out[i] = await orig({ ...a, fromBlock: jobs[i][0], toBlock: jobs[i][1] }); } };
     await Promise.all([worker(), worker(), worker(), worker()]);
     return out.flat();
   };
+  logCache.set(chainId, c);
+  return c;
 }

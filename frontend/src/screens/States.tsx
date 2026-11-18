@@ -10,7 +10,7 @@ const MARKS: [MarkState, string, number | null][] = [
   ["quiet", "Market quiet", null], ["open", "Bell in 1:12", 72], ["last10", "Bell in 6 seconds", 6], ["bell", "Bell rang", null],
   ["settling", "Settling", null], ["done", "Paid in 14 seconds", null], ["skipped", "Skipped, price moved", null], ["paused", "Paused", null],
 ];
-const base: MyOrder = { chainId: 84532, deskOrderId: 1, isBuy: true, limit: 2_450_000_000n, qty: 12_000_000_000_000_000n, tx: "0x00" as any, block: 0n, step: 0, outcome: "open", inBook: false, canCancel: true, bookId: null };
+const base: MyOrder = { chainId: 84532, deskOrderId: 1, isBuy: true, limit: 2_450_000_000n, qty: 12_000_000_000_000_000n, tx: null, block: null, placedTs: 0, step: 0, outcome: "open", inBook: false, canCancel: true, bookId: null };
 const TICKETS: [string, MyOrder][] = [
   ["Placed", base], ["In the book", { ...base, step: 1, inBook: true }], ["Settling", { ...base, chainId: 1301, isBuy: false, step: 2 }],
   ["Paid", { ...base, step: 3, outcome: "settled", canCancel: false }], ["Cancelled", { ...base, outcome: "cancelled", canCancel: false }],

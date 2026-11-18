@@ -67,7 +67,7 @@ export function Activity() {
       )}
 
       {w.status === "connected" && error && !orders && (
-        <div className="inset notice error" role="alert"><IconAlert size={22} /><div><strong>We couldn't load your orders.</strong><p className="muted">{error}. Trying again on its own.</p></div></div>
+        <div className="inset notice error" role="alert"><IconAlert size={22} /><div><strong>We couldn't load your orders.</strong><p className="muted">{error.replace(/\.+$/, "")}. Trying again on its own.</p></div></div>
       )}
 
       {w.status === "connected" && !orders && !error && loading && (

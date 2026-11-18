@@ -1,7 +1,8 @@
 // A receipt for one order, built only from chain events: what you gave, what you got, on which chain, how many seconds
 // it took, and the step-by-step ledger across Lasna, Base and Unichain. Nothing here is a claim without a transaction.
 import type { Address, Hex } from "viem";
-import { client } from "./clients";
+import { client, logClient } from "./clients";
+import { blockAt } from "./account";
 import { deskAbi, refereeAbi } from "./abi";
 import { DESKS, DESK_CHAIN_IDS, LASNA_ID, POOL_FEE_PPM, REFEREE, type DeskChainId } from "./config";
 import type { MyOrder } from "./account";
@@ -66,11 +67,12 @@ export async function loadReceipt(order: MyOrder, trader: Address): Promise<Rece
   const ownHead = await own.getBlockNumber();
   const orderId = BigInt(order.deskOrderId);
 
-  const placedTs = await tsOf(order.chainId, order.block);
+  const placedTs = order.placedTs;
+  const fromOwn = await blockAt(order.chainId, placedTs - 10);
 
   const [collected, closed] = await Promise.all([
-    own.getContractEvents({ address: d.desk, abi: deskAbi, eventName: "Collected", args: { orderId }, fromBlock: order.block, toBlock: ownHead }),
-    own.getContractEvents({ address: d.desk, abi: deskAbi, eventName: "Closed", args: { orderId }, fromBlock: order.block, toBlock: ownHead }),
+    logClient(order.chainId).getContractEvents({ address: d.desk, abi: deskAbi, eventName: "Collected", args: { orderId }, fromBlock: fromOwn, toBlock: ownHead }),
+    logClient(order.chainId).getContractEvents({ address: d.desk, abi: deskAbi, eventName: "Closed", args: { orderId }, fromBlock: fromOwn, toBlock: ownHead }),
   ]);
   const collect = (collected as any[]).find((e) => e.args.ok) ?? (collected as any[])[0] ?? null;
   const close = (closed as any[])[0] ?? null;
@@ -83,8 +85,8 @@ export async function loadReceipt(order: MyOrder, trader: Address): Promise<Rece
     const lh = await lasna.getBlockNumber();
     const spanFrom = lh > 30_000n ? lh - 30_000n : 0n;
     const [added, dropped] = await Promise.all([
-      lasna.getContractEvents({ address: REFEREE, abi: refereeAbi, eventName: "OrderAdded", args: { bookId: order.bookId }, fromBlock: spanFrom, toBlock: lh }),
-      lasna.getContractEvents({ address: REFEREE, abi: refereeAbi, eventName: "OrderDropped", args: { bookId: order.bookId }, fromBlock: spanFrom, toBlock: lh }),
+      logClient(LASNA_ID).getContractEvents({ address: REFEREE, abi: refereeAbi, eventName: "OrderAdded", args: { bookId: order.bookId }, fromBlock: spanFrom, toBlock: lh }),
+      logClient(LASNA_ID).getContractEvents({ address: REFEREE, abi: refereeAbi, eventName: "OrderDropped", args: { bookId: order.bookId }, fromBlock: spanFrom, toBlock: lh }),
     ]);
     const a = (added as any[])[0];
     const e = (dropped as any[])[0];
@@ -92,7 +94,7 @@ export async function loadReceipt(order: MyOrder, trader: Address): Promise<Rece
     if (e) {
       endTx = e.transactionHash;
       endReason = String(e.args.reason);
-      const bells = await lasna.getContractEvents({ address: REFEREE, abi: refereeAbi, eventName: "BellRang", fromBlock: a ? a.blockNumber : e.blockNumber - 800n, toBlock: e.blockNumber });
+      const bells = await logClient(LASNA_ID).getContractEvents({ address: REFEREE, abi: refereeAbi, eventName: "BellRang", fromBlock: a ? a.blockNumber : e.blockNumber - 800n, toBlock: e.blockNumber });
       const bell = (bells as any[]).at(-1);
       if (bell) { bellTx = bell.transactionHash; bellTs = await tsOf(LASNA_ID, bell.blockNumber); price = bell.args.price as bigint; }
     }
@@ -108,9 +110,9 @@ export async function loadReceipt(order: MyOrder, trader: Address): Promise<Rece
     const head = await c.getBlockNumber();
     const fromBlock = await fromBlockFor(id, lower);
     const [paid, swapped, refunded] = await Promise.all([
-      c.getContractEvents({ address: dk.desk, abi: deskAbi, eventName: "Paid", args: { to: trader, orderId }, fromBlock, toBlock: head }),
-      c.getContractEvents({ address: dk.desk, abi: deskAbi, eventName: "Swapped", args: { to: trader }, fromBlock, toBlock: head }),
-      c.getContractEvents({ address: dk.desk, abi: deskAbi, eventName: "Refunded", args: { to: trader, orderId }, fromBlock, toBlock: head }),
+      logClient(id).getContractEvents({ address: dk.desk, abi: deskAbi, eventName: "Paid", args: { to: trader, orderId }, fromBlock, toBlock: head }),
+      logClient(id).getContractEvents({ address: dk.desk, abi: deskAbi, eventName: "Swapped", args: { to: trader }, fromBlock, toBlock: head }),
+      logClient(id).getContractEvents({ address: dk.desk, abi: deskAbi, eventName: "Refunded", args: { to: trader, orderId }, fromBlock, toBlock: head }),
     ]);
     for (const e of paid as any[]) {
       if (!e.args.ok) continue;

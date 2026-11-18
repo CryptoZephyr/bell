@@ -30,7 +30,7 @@ export function Landing() {
             <Button block={false} kind="secondary" label="Watch a live round" href={href.bell} />
           </div>
         </div>
-        <div className="hero-mark">
+        <div className="hero-mark bc bc-card">
           <LivingMark state={mark ?? "quiet"} progress={secondsLeft !== null ? Math.max(0, Math.min(1, secondsLeft / total)) : 0} secondsLeft={secondsLeft} size={220} label={line} />
           <p className="hero-line" aria-live="off">{line}</p>
         </div>

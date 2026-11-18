@@ -22,9 +22,9 @@ function legWords(l: Leg): string {
   }
 }
 
-function Step({ chainId, tx, title, text }: { chainId: number; tx: string | null; title: string; text?: string }) {
+function Step({ chainId, tx, title, text, done }: { chainId: number; tx: string | null; title: string; text?: string; done?: boolean }) {
   return (
-    <li className={tx ? "led done" : "led"}>
+    <li className={tx || done ? "led done" : "led"}>
       <span className="led-dot" aria-hidden="true" />
       <div className="led-body">
         <strong>{title}</strong>
@@ -114,7 +114,7 @@ export function Receipt({ chainId, orderId }: { chainId: number; orderId: number
           <section aria-labelledby="ledger-h" className="stack">
             <h2 id="ledger-h">How this settled</h2>
             <ol className="ledger">
-              <Step chainId={order.chainId} tx={order.tx} title="You placed the order" text={`${order.isBuy ? "Pay up to" : "Get at least"} ${fmtUsdc(order.limit)} USDC per ETH.`} />
+              <Step chainId={order.chainId} tx={order.tx} done title="You placed the order" text={`${order.isBuy ? "Pay up to" : "Get at least"} ${fmtUsdc(order.limit)} USDC per ETH.`} />
               <Step chainId={LASNA_ID} tx={rc.addedTx} title="The order joined the book" />
               {rc.bellTx && <Step chainId={LASNA_ID} tx={rc.bellTx} title="The bell rang" text={rc.price ? `One price for everyone: ${fmtUsdc(rc.price)} USDC per ETH.` : undefined} />}
               {rc.collectTx && <Step chainId={order.chainId} tx={rc.collectTx} title="Your funds moved to the desk for this bell" />}
