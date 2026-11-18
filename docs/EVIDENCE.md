@@ -20,7 +20,7 @@ The pools on both chains were moved to 800 USDC per WETH and carry a position of
 
 Gates 12 and 14 are covered by V5-2 and V5-4.
 
-Late delivery, observed live. Base Sepolia stopped including user transactions for about 2 hours. When it recovered, the stalled callbacks of the V5-4 round landed late. The order that had been frozen failed its pull. The other order's pull succeeded only because its trader's approval had just landed, and the desk then refunded the 0.8 USDC from its own record. The desk ended with 0 USDC.
+Late delivery, observed live. Base Sepolia stopped including user transactions for about 2 hours. When it recovered, the stalled callbacks of the V5-4 round landed late. One order's late pull failed. Its trader's approval was in place, so the likely cause is that the order had been frozen by the refund request, though the logs don't prove the order of arrival. The other order's pull succeeded because its trader's approval had just landed, and the desk then refunded the 0.8 USDC from its own record. The desk ended with 0 USDC.
 
 Gas, local table with a stand-in system contract, worst case with the most pairs: 4 orders settle 285k, 8 orders 464k, 12 orders 644k, 16 orders 823k, 24 orders 1.18M. The live system adds about 10.6k gas per callback, which is why the live 8-order settle is 1.55 times the local number. With 11k per callback added, the local table predicted 395k for the 4-order settle and the live round used 403k.
 
