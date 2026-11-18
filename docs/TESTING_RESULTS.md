@@ -113,6 +113,8 @@ Written during the testing phase (TESTING_PHASE page in Notion, phase 3.5). Real
 
 | BR-01 | 2026-11-18 | 912018a | n/a | GitHub default branch | main is the default | `git ls-remote --symref origin HEAD` returns refs/heads/main after the owner switched it. The old dev branch ccr-a3a2c6a3-c8kua6 points at the same commit | - | PASS | Vercel production branch is checked by the next push to main |
 
+| BR-02 | 2026-11-18 | 0902078 | n/a | Vercel production branch | a push to main deploys to production | Probe commit pushed to main after the owner changed the Vercel setting. Result recorded in the next commit | - | PENDING | - |
+
 ## Defects
 
 | ID | Severity | What | Status |
