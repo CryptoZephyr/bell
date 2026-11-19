@@ -190,7 +190,7 @@ export function RoundPage({ block }: { block: string }) {
           <p className="muted small">{round.chains.filter((c) => !c.readable).map((c) => DESKS[c.chainId].name).join(" and ")}: payout times not readable right now, so its steps are not listed.</p>
         )}
       </section>
-      <p className="muted small tnum">Seconds are counted from the bell's block timestamp to each transaction's block timestamp, so they are whole seconds.</p>
+      <p className="muted small tnum">Seconds are counted from the bell's block timestamp to each transaction's block timestamp, so they are whole seconds. Each chain keeps its own clock, and the clocks can differ by a second, so a step can show an earlier second than the step before it. The steps are listed in the order they had to happen.</p>
     </div>
   );
 }

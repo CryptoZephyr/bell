@@ -11,7 +11,7 @@ Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not af
 
 | Verb | What it is | Try it without an account |
 |---|---|---|
-| Check | Every bell on the deployed contracts, newest first, with the real seconds each one took from the bell to the last payout. It works at any hour and needs no wallet. Each round links to its transactions on the block explorers. One round is walked through in [Proof it works](#proof-it-works) | https://bell-gold-six.vercel.app/#/rounds |
+| Check | Every bell on the deployed contracts, newest first, with the real seconds each one took from the bell to the last payout. It works at any hour and needs no wallet. Each round links to its transactions on the block explorers. One round is walked through in [Proof it works](#proof-it-works) and on its own page at https://bell-gold-six.vercel.app/#/round/8643401 | https://bell-gold-six.vercel.app/#/rounds |
 | Watch | The live round: the countdown to the next bell, the Uniswap price, one book holding orders from both chains, and each chain's payout landing. If a round settled in the last 10 minutes or so, the page also shows it with its real timings and explorer links. Otherwise it reads "Market quiet", so start with Check | https://bell-gold-six.vercel.app/#/bell |
 
 ## More to explore
@@ -149,7 +149,7 @@ Keep at least 1 REACT in the referee's reserves. A reactive contract in debt sto
 
 ## Proof it works
 
-One round on the deployed contracts, 18 Nov 2026. A seller on Base and a buyer on Unichain were paired at 799.90 USDC per ETH. Bell to last payout: 5 seconds.
+One round on the deployed contracts, 18 Nov 2026. A seller on Base and a buyer on Unichain were paired at 799.90 USDC per ETH. Bell to last payout: 5 seconds. The same round on the Rounds page, with its split sheet and every transaction: https://bell-gold-six.vercel.app/#/round/8643401
 
 | Time (UTC) | Chain | What happened | Transaction |
 |---|---|---|---|
