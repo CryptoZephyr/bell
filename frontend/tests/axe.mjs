@@ -4,7 +4,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 const axeSrc = require("node:fs").readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const base = process.env.BASE || "http://localhost:4173";
-const routes = process.argv.slice(2).length ? process.argv.slice(2) : ["/", "/bell", "/trade", "/activity", "/contracts", "/help", "/states", "/rounds", "/round/8643401"];
+const routes = process.argv.slice(2).length ? process.argv.slice(2) : ["/", "/bell", "/trade", "/activity", "/contracts", "/help", "/rounds", "/round/8643401"];
 const b = await chromium.launch();
 let bad = 0;
 for (const [name, vp] of [["phone", { width: 390, height: 844 }], ["desktop", { width: 1280, height: 900 }]]) {

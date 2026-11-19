@@ -8,6 +8,7 @@ The audit was first run on 8aadf68. The build session pushed 4f67bf4 (phone layo
 
 - H1, H2 and H3 are fixed on branch `fix/paid-truth` (PR #2). See [`audit/fix-paid-truth/`](audit/fix-paid-truth/) for the verification screenshots, and `frontend/tests/paid-truth.mjs` for the unit tests.
 - M3 is fixed in 4f67bf4.
+- M5 is fixed on main (19 Nov 2026). `#/states` exists only in development builds. In production it opens the landing page and the gallery's code isn't in the bundle.
 - Every other Medium and Low finding below is still open.
 
 ## Method
@@ -65,7 +66,7 @@ Fix direction: match legs to the round's orders, count only `Paid` and `Swapped`
 | M2 | Two main actions per screen. The header's Signal "Connect wallet" competes with the page's own Signal "Connect wallet" on Trade, Activity and Receipt. Make the header button secondary. | `src/app/Shell.tsx:138` |
 | M3 | Fixed in 4f67bf4. The landing hero card was missing its Bell corner and radius. It now carries the `bc bc-card` classes. | `src/screens/Landing.tsx:33` |
 | M4 | Unlimited approval (`maxUint256`) while the copy says "Approve USDC once". The hardened desk only pulls what each order commits to, but say so in the approve step, or approve a capped amount. | `src/screens/Trade.tsx:98` |
-| M5 | The States gallery ships in production at `#/states`, with sample numbers (Buy 0.0120 ETH at 2,450 USDC). Gate it behind `import.meta.env.DEV`. | `src/app/App.tsx:25` |
+| M5 | Fixed 19 Nov 2026. The States gallery shipped in production at `#/states`, with sample numbers (Buy 0.0120 ETH at 2,450 USDC). Now gated behind `import.meta.env.DEV`. | `src/app/App.tsx:25` |
 | M6 | 60/30/10 drift. Contracts and Help in light mode have no Ink card and look washed out. The phone landing page in light mode is roughly half Ink, well over 30%. | `contracts-*-light.png`, `help-*-light.png`, `landing-phone-light.png` |
 | M7 | Help uses native `details`/`summary` with the browser's default triangle, which the design bans. | `src/screens/HelpScreen.tsx:9` |
 | M8 | In dark mode the selected half of the Buy/Sell switch (Midnight) is hard to tell from the track. | `trade-*-dark.png` |

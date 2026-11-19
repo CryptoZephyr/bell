@@ -14,7 +14,7 @@ const errs = []; page.on("pageerror", (e) => errs.push(e.message.slice(0, 120)))
 console.log(`${engine} ${profile}: UA ${(await page.evaluate(() => navigator.userAgent)).slice(0, 90)}`);
 // layout on every route
 const over = [];
-for (const r of ["/", "/bell", "/trade", "/activity", "/contracts", "/help", "/states"]) {
+for (const r of ["/", "/bell", "/trade", "/activity", "/contracts", "/help"]) {
   await page.goto(B + "/#" + r); await page.waitForTimeout(2200);
   const o = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   over.push(`${r}:${o}`);

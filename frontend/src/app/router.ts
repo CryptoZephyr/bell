@@ -25,7 +25,8 @@ export function parse(hash: string): Route {
     case "receipt": return { name: "receipt", chainId: Number(b), orderId: Number(c) };
     case "contracts": return { name: "contracts" };
     case "help": return { name: "help" };
-    case "states": return { name: "states" };
+    // The States gallery uses sample numbers, so it exists only in development builds (audit M5).
+    case "states": return import.meta.env.DEV ? { name: "states" } : { name: "landing" };
     default: return { name: "landing" };
   }
 }
