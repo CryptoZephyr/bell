@@ -1,6 +1,6 @@
 # Testing phase results
 
-Written during the testing phase (TESTING_PHASE page in Notion, phase 3.5). Real testnets only: Base Sepolia, Unichain Sepolia, Reactive Lasna. Rule followed: test, don't fix. The build under test was 078e293. Defects that blocked the demo runs were fixed on the dev branch and re-tested (commits 3d9703b, 4b5b891, b883ab9). Each row is one run. Evidence paths starting with /tmp were on the tester's container, so the Actual column and the transaction hashes carry the proof.
+Written during the testing phase (TESTING_PHASE page in Notion, phase 3.5). Real testnets only: Base Sepolia, Unichain Sepolia, Reactive Lasna. Rule followed: test, don't fix. The build under test was 078e293. Defects that blocked the demo runs were fixed on the dev branch and re-tested (commits 3d9703b, 4b5b891, b883ab9). Each row is one run. Evidence paths starting with /tmp were on the tester's container, so the Actual column and the transaction hashes carry the proof. Commit IDs are the ones tested at the time. Their IDs on main since the 19 Nov history rewrite are in [Commit IDs in this log](#commit-ids-in-this-log) at the end.
 
 | Test | Date | Commit | Device / theme | Inputs | Expected | Actual | Evidence | Result | Follow-up |
 |---|---|---|---|---|---|---|---|---|---|
@@ -179,3 +179,22 @@ Criterion 3 (three clean demo runs): met by G-01 to G-03 on the fixed build. Acc
 Criterion 4 (gates 15 and 16 with links): met. Gate 15 closed from T-01 to T-06 and the screen tests, gate 16 from G-01 to G-03.
 
 Phase 4 (proof and submission) can start.
+
+## Commit IDs in this log
+
+On 19 Nov 2026 the history from c87c684 onward was rewritten so every commit carries the GitHub noreply address. The file contents of every commit are unchanged, and the commits up to and including 4f67bf4 kept their IDs. The rows below keep the IDs that were tested at the time. This table gives each one's ID on main now.
+
+| ID in this log | ID on main now | Commit |
+|---|---|---|
+| 0546b1b | 9cfd245 | Receipt: show what you really spent when part of a pool fill comes back |
+| 078e293 | 9faa919 | frontend: say paid only from a confirmed payout (audit H1 to H3) (#2) |
+| 0bb10b4 | d1323fc | chore: add the Reactive MCP server for sessions, and a device and screen reader checklist |
+| 3d9703b | e0dc21c | frontend: fix false Refunded and Nothing to pay from unreadable Unichain logs (DEF-01, DEF-02) |
+| 4b5b891 | b060fdb | frontend: approving or wrapping no longer flashes a green Order placed (DEF-06) |
+| 82ee29a | 8aba232 | docs: Reactive health, subscription and source checks pass (P-01, A-08) |
+| 8ca3584 | acc60a5 | frontend: fix the open polish defects (DEF-03, 07 to 12) and split the bundle |
+| 912018a | 056efd6 | docs: record the owner's phone test (D-01, D-02 accepted) |
+| 9b0f7c1 | ce68663 | docs: probe the Vercel production branch |
+| a026120 | 341d6fc | chore: record the Base pool realignment to 795 (testing phase P-03) |
+| b883ab9 | 3f9f61a | frontend: say when an order was refused, and why one was removed (DEF-04, DEF-05) |
+| da5595f | 6781ae0 | Update README for clarity and formatting |
