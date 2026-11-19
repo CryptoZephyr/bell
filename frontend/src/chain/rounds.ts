@@ -360,7 +360,7 @@ async function stamp(seeds: RoundSeed[]): Promise<void> {
 export type Scan = { seeds: RoundSeed[]; /** Pass this back to load older rounds. Null once the first block of the referee is reached. */ cursor: bigint | null };
 
 /**
- * Reads the referee's events newest first until `want` rounds are found. Four windows are read at a time, and `onProgress`
+ * Reads the referee's events newest first until `want` rounds are found. Six windows are read at a time, and `onProgress`
  * gets the rounds found so far, so the page can paint rows while the older windows are still loading.
  */
 export async function scanRounds(upTo: bigint | null, want = 20, onProgress?: (seeds: RoundSeed[]) => void): Promise<Scan> {
@@ -369,10 +369,10 @@ export async function scanRounds(upTo: bigint | null, want = 20, onProgress?: (s
   let acc: LogRec[] = [];
   let seeds: RoundSeed[] = [];
   while (to >= REFEREE_BLOCK) {
-    // Four windows per step, newest first. Each is one request, and they run side by side.
+    // Six windows per step, newest first. Each is one request, and they run side by side.
     const ranges: [bigint, bigint][] = [];
     let hi = to;
-    for (let i = 0; i < 4 && hi >= REFEREE_BLOCK; i++) {
+    for (let i = 0; i < 6 && hi >= REFEREE_BLOCK; i++) {
       const lo = hi - WINDOW + 1n < REFEREE_BLOCK ? REFEREE_BLOCK : hi - WINDOW + 1n;
       ranges.push([lo, hi]);
       hi = lo - 1n;
@@ -546,4 +546,40 @@ export function isCacheable(r: Round, nowS = Date.now() / 1000): boolean {
   if (!r.loaded || !r.complete) return false;
   if (r.kind === "bell" && (r.bellTs === null || nowS - r.bellTs < 100)) return false;
   return r.outcome !== "open";
+}
+
+// ---- starting early ----
+
+let warm: { at: number; p: Promise<Scan> } | null = null;
+const pre = new Map<string, Promise<Round>>();
+/** Starts the first scan before the Rounds screen has loaded, then the desk reads for those rounds, a few at a time. */
+export function warmScan(want = 20): void {
+  if (warm) return;
+  const p = scanRounds(null, want);
+  warm = { at: Date.now(), p };
+  p.then((scan) => {
+    const keys = scan.seeds.filter((x) => x.kind === "bell");
+    let i = 0;
+    const worker = async () => {
+      while (i < keys.length) {
+        const seed = keys[i++];
+        const job = loadRound(seed);
+        pre.set(seed.block.toString(), job);
+        await job.catch(() => {});
+      }
+    };
+    for (let k = 0; k < 8; k++) void worker();
+  }).catch(() => { warm = null; });
+}
+/** The warmed scan, if one was started in the last 30 seconds. It is used once. */
+export function takeWarmScan(): Promise<Scan> | null {
+  const w = warm;
+  warm = null;
+  return w && Date.now() - w.at < 30_000 ? w.p : null;
+}
+/** A desk read the warm-up already started for this round. Used once, and a failed one is dropped so it is read again. */
+export function takePreloaded(key: string): Promise<Round> | null {
+  const j = pre.get(key);
+  pre.delete(key);
+  return j ?? null;
 }
