@@ -47,6 +47,7 @@ export function Landing() {
             </li>
           ))}
         </ol>
+        <div><Button block={false} kind="secondary" label="See every round" href={href.rounds} /></div>
       </section>
 
       <section aria-labelledby="live-h" className="stack">

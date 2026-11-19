@@ -11,7 +11,7 @@ Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not af
 
 | Verb | What it is | Try it without an account |
 |---|---|---|
-| Check | One real round on the deployed contracts. A bell on Reactive Lasna, a pull and a payout on each of two chains, 5 seconds end to end. Every row opens on a block explorer | [Proof it works](#proof-it-works) |
+| Check | Every bell on the deployed contracts, newest first, with the real seconds each one took from the bell to the last payout. It works at any hour and needs no wallet. Each round links to its transactions on the block explorers. One round is walked through in [Proof it works](#proof-it-works) | https://bell-gold-six.vercel.app/#/rounds |
 | Watch | The live round: the countdown to the next bell, the Uniswap price, one book holding orders from both chains, and each chain's payout landing. If a round settled in the last 10 minutes or so, the page also shows it with its real timings and explorer links. Otherwise it reads "Market quiet", so start with Check | https://bell-gold-six.vercel.app/#/bell |
 
 ## More to explore
@@ -19,6 +19,7 @@ Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not af
 | Feature | What it is | Where |
 |---|---|---|
 | Trade | Buy or sell ETH on either chain with a worst-price limit, placed by press and hold. Needs a wallet and test funds | https://bell-gold-six.vercel.app/#/trade |
+| Rounds | The record behind Check: a speed summary, a seconds strip and one page per round with its split sheet and ledger. Seconds come from block timestamps, and a chain whose logs can't be read says so instead of showing a number | https://bell-gold-six.vercel.app/#/rounds |
 | Receipts | Each order's result, the chain it was paid on, and every step linked to an explorer | https://bell-gold-six.vercel.app/#/activity |
 | Contracts and proof | The three contract addresses with explorer links, and what the contracts promise | https://bell-gold-six.vercel.app/#/contracts |
 | Help | Why you're paid on the other chain, what protection means, how to get test funds | https://bell-gold-six.vercel.app/#/help |
@@ -159,9 +160,13 @@ One round on the deployed contracts, 18 Nov 2026. A seller on Base and a buyer o
 | 09:58:35 | Unichain Sepolia | Paid the seller 0.239970 USDC on Unichain | [`0x16937232…033064`](https://sepolia.uniscan.xyz/tx/0x169372323efa806032cb66c2b4dd1ca60b1468ea755487e8f4229a3748033064) |
 | 09:58:35 | Unichain Sepolia | Filled the buyer's leftover 0.079991 USDC on the pool | [`0x2e8dade3…e43c76`](https://sepolia.uniscan.xyz/tx/0x2e8dade3f11feaac355ac4f3ce369330d2b2e578131e31fa43c281b447e43c76) |
 
-Every live round in the testing phase paid out 4 to 6 seconds after the bell with one or two pairs, and 8 to 9 seconds with a full book of 6 orders. The three demo runs and every other test are in [`docs/TESTING_RESULTS.md`](docs/TESTING_RESULTS.md).
+Every round since, with its seconds, is on the [Rounds page](https://bell-gold-six.vercel.app/#/rounds). Every live round in the testing phase paid out 4 to 6 seconds after the bell with one or two pairs, and 8 to 9 seconds with a full book of 6 orders. The three demo runs and every other test are in [`docs/TESTING_RESULTS.md`](docs/TESTING_RESULTS.md).
 
 It also works for someone outside the build. On 18 Nov 2026 the project owner placed a buy of 0.0001 ETH on Base from their own wallet in the hosted app. The bell rang 13 seconds later ([`0xc41d840c…eff800`](https://lasna.reactscan.net/tx/0xc41d840cb06d72d7513b8845d95a3b2a78a53e7e8ac9b6103a7e6a675beff800)), the desk collected 0.078519 USDC, and the Base pool paid out 0.0000986726 WETH 4 seconds after the bell.
+
+## Next steps
+
+Price averaging is not built. The bell prices a round at the last swap on the reference Uniswap pool and skips the round if that price moved more than 10 percent inside one window. A time-weighted average over a short window would make the price harder to move with one trade. It is the first thing to add before this goes beyond testnets.
 
 ## Repository map
 
