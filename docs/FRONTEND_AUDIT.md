@@ -9,6 +9,7 @@ The audit was first run on 8aadf68. The build session pushed 4f67bf4 (phone layo
 - H1, H2 and H3 are fixed on branch `fix/paid-truth` (PR #2). See [`audit/fix-paid-truth/`](audit/fix-paid-truth/) for the verification screenshots, and `frontend/tests/paid-truth.mjs` for the unit tests.
 - M3 is fixed in 4f67bf4.
 - M5 is fixed on main (19 Nov 2026). `#/states` exists only in development builds. In production it opens the landing page and the gallery's code isn't in the bundle.
+- M1 and L7 are fixed on main (19 Nov 2026). A button without its own glyph shows no icon, and the tick appears only on success. The bell's rhythm reads "about every 110 seconds" everywhere.
 - Every other Medium and Low finding below is still open.
 
 ## Method
@@ -62,7 +63,7 @@ Fix direction: match legs to the round's orders, count only `Paid` and `Swapped`
 
 | # | Finding | Where |
 | --- | --- | --- |
-| M1 | Buttons without an explicit glyph show a success tick ("Watch a live round", Activity's "Place an order", "Disconnect", the cancel button). | `src/ui/Button.tsx:86` |
+| M1 | Fixed 19 Nov 2026. Buttons without an explicit glyph show a success tick ("Watch a live round", Activity's "Place an order", "Disconnect", the cancel button). | `src/ui/Button.tsx:86` |
 | M2 | Two main actions per screen. The header's Signal "Connect wallet" competes with the page's own Signal "Connect wallet" on Trade, Activity and Receipt. Make the header button secondary. | `src/app/Shell.tsx:138` |
 | M3 | Fixed in 4f67bf4. The landing hero card was missing its Bell corner and radius. It now carries the `bc bc-card` classes. | `src/screens/Landing.tsx:33` |
 | M4 | Unlimited approval (`maxUint256`) while the copy says "Approve USDC once". The hardened desk only pulls what each order commits to, but say so in the approve step, or approve a capped amount. | `src/screens/Trade.tsx:98` |
@@ -81,7 +82,7 @@ Fix direction: match legs to the round's orders, count only `Paid` and `Swapped`
 | L4 | Contracts page: Copy buttons are outline pills and explorer links are plain text, where the spec has icon actions and explorer chips. The rule text "two open orders, 15 minutes" is hard-coded, though `MAX_ORDERS_PER_TRADER` and `ORDER_TTL` are already read from the referee. | `src/screens/Contracts.tsx:53` |
 | L5 | The loading skeleton is a plain block, not shaped like the content. | `states-*.png` |
 | L6 | Activity's empty-state button sits on the card's bottom edge. | `activity-phone-*.png` |
-| L7 | Copy says "every couple of minutes" on Landing and "about every 3 minutes" elsewhere. Pick one. | `src/screens/Landing.tsx:13` |
+| L7 | Fixed 19 Nov 2026 ("about every 110 seconds"). Copy said "every couple of minutes" on Landing and "about every 3 minutes" elsewhere. Pick one. | `src/screens/Landing.tsx:13` |
 | L8 | One 550 kB JavaScript bundle. Split viem and the wallet code so phones load faster. | `npm run build` output |
 | L9 | The footer "Help" link is 36px wide. That passes WCAG 2.2 AA (24px) but is below the design's 44px target. | `tests/keys.mjs` notes |
 

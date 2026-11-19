@@ -10,7 +10,7 @@ export const HELP: HelpTopic[] = [
   {
     id: "bell",
     title: "What is the bell?",
-    short: "A moment every couple of minutes when waiting orders meet.",
+    short: "A moment about every 110 seconds when waiting orders meet.",
     body: [
       "Orders gather in one list, from Base and from Unichain. About every two minutes the bell rings, and everyone who can trade at that moment does, at the same Uniswap price.",
       "Your money stays in your wallet until the bell. Nothing is locked in the meantime.",
