@@ -7,7 +7,7 @@ const b = await chromium.launch();
 const page = await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
 let bad = 0;
 const fail = (m) => { bad++; console.log("FAIL", m); };
-for (const r of ["/", "/bell", "/trade", "/activity", "/contracts", "/help"]) {
+for (const r of ["/", "/bell", "/trade", "/activity", "/contracts", "/help", "/rounds", "/round/8643401"]) {
   await page.goto(base + "/#" + r);
   await page.waitForTimeout(2500);
   const seen = [];

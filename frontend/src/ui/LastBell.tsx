@@ -1,8 +1,10 @@
 // The last bell's split sheet (section 18, screen 3): what the last round did, in real seconds from block timestamps.
 import { ChainMark, IconArrowUpRight } from "./Icons";
+import { Button } from "./Button";
 import { fmtPrice } from "../chain/format";
 import { LASNA_ID, explorerName, txUrl } from "../chain/config";
 import type { LastRound } from "../chain/round";
+import { href } from "../app/router";
 
 export function LastBell({ last, loading }: { last: LastRound | null; loading?: boolean }) {
   if (!last) {
@@ -10,6 +12,7 @@ export function LastBell({ last, loading }: { last: LastRound | null; loading?: 
       <div className="inset empty">
         <h3>Last bell</h3>
         <p className="muted">{loading ? "Reading the last bell…" : "No bell has rung recently. When one does, how fast it paid shows here."}</p>
+        {!loading && <div><a className="chip-link" href={href.rounds}>See the last rounds<IconArrowUpRight size={14} /></a></div>}
       </div>
     );
   }
@@ -37,6 +40,7 @@ export function LastBell({ last, loading }: { last: LastRound | null; loading?: 
         <a className="chip-link" href={txUrl(LASNA_ID, last.bellTx)} target="_blank" rel="noopener noreferrer">The bell on {explorerName(LASNA_ID)}<IconArrowUpRight size={14} /></a>
         <a className="chip-link" href={txUrl(LASNA_ID, last.settleTx)} target="_blank" rel="noopener noreferrer">The settlement<IconArrowUpRight size={14} /></a>
       </div>
+      <div><Button block={false} kind="secondary" label="See every round" href={href.rounds} /></div>
     </div>
   );
 }
