@@ -18,7 +18,8 @@ const Receipt = lazy(() => import("../screens/Receipt").then((m) => ({ default: 
 const Landing = lazy(() => import("../screens/Landing").then((m) => ({ default: m.Landing })));
 const Contracts = lazy(() => import("../screens/Contracts").then((m) => ({ default: m.Contracts })));
 const HelpScreen = lazy(() => import("../screens/HelpScreen").then((m) => ({ default: m.HelpScreen })));
-const States = lazy(() => import("../screens/States").then((m) => ({ default: m.States })));
+// Development only: in a production build this is null and the gallery's code is not shipped.
+const States = import.meta.env.DEV ? lazy(() => import("../screens/States").then((m) => ({ default: m.States }))) : null;
 
 function Screen({ route }: { route: ReturnType<typeof useRoute> }) {
   switch (route.name) {
@@ -31,7 +32,7 @@ function Screen({ route }: { route: ReturnType<typeof useRoute> }) {
     case "receipt": return <Receipt chainId={route.chainId} orderId={route.orderId} />;
     case "contracts": return <Contracts />;
     case "help": return <HelpScreen />;
-    case "states": return <States />;
+    case "states": return States ? <States /> : <Landing />;
   }
 }
 
