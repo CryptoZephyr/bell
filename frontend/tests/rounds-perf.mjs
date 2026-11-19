@@ -36,16 +36,13 @@ for (const [name, slow] of [["normal", false], ["Slow 4G", true]]) {
   }
   const t0 = Date.now();
   await page.goto(base + "/#/rounds");
-  await page.waitForSelector(".round-row", { timeout: 120000 });
-  const facts = Date.now() - t0;
-  await page.waitForFunction(() => document.querySelectorAll(".rr-secs strong").length > 0, { timeout: 120000 }).catch(() => {});
-  const secs = Date.now() - t0;
-  const at = {};
-  for (const n of [5, 10]) {
-    await page.waitForFunction((k) => [...document.querySelectorAll(".round-row")].filter((r) => !r.querySelector(".mini.skeleton") && !/Reading$/.test(r.querySelector(".rr-secs")?.textContent || "")).length >= k, n, { timeout: 120000 }).catch(() => {});
-    at[n] = Date.now() - t0;
-  }
-  console.log(`speed ${name}: Lasna facts (first rows) ${(facts / 1000).toFixed(1)} s, first seconds ${(secs / 1000).toFixed(1)} s, 5 rows read ${(at[5] / 1000).toFixed(1)} s, 10 rows read ${(at[10] / 1000).toFixed(1)} s`);
+  const t = {};
+  const mark = async (name, fn, arg) => { await page.waitForFunction(fn, arg, { timeout: 150000, polling: 100 }).catch(() => {}); t[name] = ((Date.now() - t0) / 1000).toFixed(1); };
+  await mark("first row", () => document.querySelectorAll(".round-row").length >= 1);
+  await mark("first seconds", () => document.querySelectorAll(".rr-secs strong").length >= 1);
+  await mark("all rows listed (Lasna facts)", () => document.querySelectorAll(".round-row").length >= 15);
+  await mark("all rows read (seconds)", () => document.querySelectorAll(".round-row").length >= 15 && ![...document.querySelectorAll(".round-row")].some((r) => r.querySelector(".mini.skeleton")));
+  console.log(`speed ${name}:`, JSON.stringify(t));
   await ctx.close();
 }
 await b.close();

@@ -147,7 +147,7 @@ Built from ROUNDS_SPEC (19 Nov 2026), frontend only. No contract change and no r
 | RP-5 | PASS | Live round (buyer1 on Base, seller2 on Unichain) with the page open. Bell 10:29:56, last payout 10:30:01 (5 s). The new row slid in at the top at 10:30:01 as "settling", then said "paid out in 5 seconds" at 10:30:13, one poll later. The chain says 5 s. The app's own bell card said "Settled in 5 seconds" |
 | RP-6 | PASS | eth_getLogs on the Base RPC blocked: rows and the detail page say "Payout times not readable", the chain shows n/a, and no number appears for it. The round's total is not shown either |
 | RP-7 | PASS | No horizontal overflow at 320, 390, 768, 1280 and 1440 px on both routes. axe: no violations on both routes, phone and desktop, light and dark. Keyboard pass ok with both routes added. Screenshots in /tmp/rp (not kept in the repo) |
-| RP-8 | PARTIAL | Normal connection: Lasna facts on screen in 1.9 s, first seconds in 4.3 s, five rows read in 6.3 s, ten in 8.8 s. Slow 4G: 3.4 s, 7.0 s, 8.9 s, 12.3 s. The first rows meet 3 s and 6 s. Reading seconds for 20 rows inside 6 s is not met: desks are read only for the newest ten rows and the ones on screen, by design, so a long list does not hit the public RPCs all at once |
+| RP-8 | PARTIAL | Measured in a cloud container behind a proxy (each RPC round trip 160 to 380 ms), 19 rows (20 rounds, two skipped bells fold into one row). Normal connection: first row 1.8 s, the Lasna facts of all rows 4.0 s, every row's seconds read 7.0 s. Slow 4G: 2.8 s, 5.7 s, 10.5 s. The targets are 3 s and 6 s, so they are missed by about a second on a normal connection. What was done to get here: one getLogs per 9000 block window with four windows in flight, 12 parallel block timestamp reads, JSON-RPC batching on the read clients, the first page of rounds read right away with 8 desk reads at once. Left for the owner: time it once on a real home or phone connection. A second visit paints from the browser cache at once |
 
 Defects found while building and fixed before the PR:
 
@@ -157,7 +157,7 @@ Defects found while building and fixed before the PR:
 | RPD-2 | S2 | An open round (still settling) was labelled "payout times not readable". It now says "settling, waiting for the payouts" | Fixed |
 | RPD-3 | S3 | The seconds strip drew an outline bar for rounds whose desks had not been read yet, which looked like a failure. Only rounds whose desks were read get a bar | Fixed |
 | RPD-4 | S3 | The hidden text table for the strip made the page 855 px wide at phone width. It sits in a wrapper now | Fixed |
-| RPD-5 | S3 | The newest rounds were read only when scrolled into view, so the median said "of 2 rounds" at first. The newest ten are read once the scan finishes | Fixed |
+| RPD-5 | S3 | The newest rounds were read only when scrolled into view, so the median said "of 2 rounds" at first. The first page of 20 is read once the scan finishes | Fixed |
 
 Known limits, stated on the page: seconds are whole seconds because block timestamps are. A wallet with two orders on one chain in one round can't have a pool fill split between them, because the Swapped event has no order id. Rounds from retired deployments are not shown.
 

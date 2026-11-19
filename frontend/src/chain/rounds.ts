@@ -353,14 +353,14 @@ async function stamp(seeds: RoundSeed[]): Promise<void> {
   const ts = new Map<bigint, number>();
   let i = 0;
   const worker = async () => { while (i < blocks.length) { const b = blocks[i++]; ts.set(b, await tsOf(LASNA_ID, b)); } };
-  await Promise.all([worker(), worker(), worker(), worker()]);
+  await Promise.all(Array.from({ length: 12 }, worker));
   for (const s of seeds) { s.ts = ts.get(s.block) ?? null; for (const e of s.events) e.ts = ts.get(e.block) ?? null; }
 }
 
 export type Scan = { seeds: RoundSeed[]; /** Pass this back to load older rounds. Null once the first block of the referee is reached. */ cursor: bigint | null };
 
 /**
- * Reads the referee's events newest first until `want` rounds are found. Two windows are read at a time, and `onProgress`
+ * Reads the referee's events newest first until `want` rounds are found. Four windows are read at a time, and `onProgress`
  * gets the rounds found so far, so the page can paint rows while the older windows are still loading.
  */
 export async function scanRounds(upTo: bigint | null, want = 20, onProgress?: (seeds: RoundSeed[]) => void): Promise<Scan> {
@@ -369,12 +369,17 @@ export async function scanRounds(upTo: bigint | null, want = 20, onProgress?: (s
   let acc: LogRec[] = [];
   let seeds: RoundSeed[] = [];
   while (to >= REFEREE_BLOCK) {
-    const w = (hi: bigint): [bigint, bigint] => [hi - WINDOW + 1n < REFEREE_BLOCK ? REFEREE_BLOCK : hi - WINDOW + 1n, hi];
-    const first = w(to);
-    const second: [bigint, bigint] | null = first[0] > REFEREE_BLOCK ? w(first[0] - 1n) : null;
-    const got = await Promise.all([readWindow(...first), second ? readWindow(...second) : Promise.resolve([] as LogRec[])]);
-    acc = acc.concat(got[0], got[1]);
-    const lowest = second ? second[0] : first[0];
+    // Four windows per step, newest first. Each is one request, and they run side by side.
+    const ranges: [bigint, bigint][] = [];
+    let hi = to;
+    for (let i = 0; i < 4 && hi >= REFEREE_BLOCK; i++) {
+      const lo = hi - WINDOW + 1n < REFEREE_BLOCK ? REFEREE_BLOCK : hi - WINDOW + 1n;
+      ranges.push([lo, hi]);
+      hi = lo - 1n;
+    }
+    const got = await Promise.all(ranges.map(([lo, h]) => readWindow(lo, h)));
+    acc = acc.concat(...got);
+    const lowest = ranges[ranges.length - 1][0];
     seeds = groupRounds(acc);
     // One more than asked for, so the oldest round kept has every event it owns.
     const enough = seeds.length > want;

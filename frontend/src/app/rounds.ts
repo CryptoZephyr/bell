@@ -6,7 +6,7 @@ import { loadRound, readCache, scanNewer, scanRounds, seedRound, writeCache, typ
 const PAGE = 20;
 const POLL_MS = 12_000;
 const RETRY_MS = 15_000;
-const CONCURRENT = 4;
+const CONCURRENT = 8;
 const byBlockDesc = (a: Round, b: Round) => (a.bellBlock === b.bellBlock ? 0 : a.bellBlock > b.bellBlock ? -1 : 1);
 
 export type RoundsState = {
@@ -124,12 +124,12 @@ export function useRounds(): RoundsState {
     return () => { stop = true; };
   }, [merge]);
 
-  // The newest rounds are read right away, so the speed summary has numbers before anyone scrolls.
+  // The first page of rounds is read right away, so the speed summary has numbers before anyone scrolls. Older pages read as they scroll into view.
   const primed = useRef(false);
   useEffect(() => {
     if (primed.current || !ready || rounds.length === 0) return;
     primed.current = true;
-    rounds.filter((r) => r.kind === "bell").slice(0, 10).forEach((r) => ensure(r.key));
+    rounds.filter((r) => r.kind === "bell").slice(0, PAGE).forEach((r) => ensure(r.key));
   }, [rounds, ensure, ready]);
 
   // A quiet poll for new rounds, and for a settling round to finish.
