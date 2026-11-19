@@ -198,3 +198,19 @@ On 19 Nov 2026 the history from c87c684 onward was rewritten so every commit car
 | a026120 | 341d6fc | chore: record the Base pool realignment to 795 (testing phase P-03) |
 | b883ab9 | 3f9f61a | frontend: say when an order was refused, and why one was removed (DEF-04, DEF-05) |
 | da5595f | 6781ae0 | Update README for clarity and formatting |
+
+## Pre-demo top-up
+
+19 Nov 2026, before the demo recording. The referee had 1.4868 REACT of reserves (HEALTHY, no debt, 9 of 9 subscriptions), below the 3 REACT kept for a demo. The deployer sent 0.03 ETH to the Reactive faucet on Ethereum Sepolia (`0x9b9BB25f1A81078C544C829c5EB7822d747Cf434`, 1 ETH gives 100 REACT), tx `0x2aec57aef2e39bb6ea1a64d3dc540526fced3d66b2212233cf2f346202aa4ed9`. The deployer's Lasna balance went from 0.534 to 3.684 REACT. `EXTRA=3.35 npx hardhat run scripts/top-up-reserves.js --network lasna` then deposited 3.35 REACT into the referee's reserves, depositTo tx `0x9e227b9b74de33f2451e5283e446b7a4f381fe1c9a5a6a70415d23963b74c3d1`. Reserves now 4.8368 REACT, confirmed by the Reactive MCP get_rc_health: HEALTHY, no debt, 9 of 9 subscriptions active, 0 reverts. About 0.33 REACT stays in the deployer for gas.
+
+Test wallet balances read the same day (ETH for gas, USDC, WETH, on Base Sepolia then Unichain Sepolia). Every wallet is under 0.002 ETH of gas on at least one chain, and the gas needed per transaction is far below that, so these are flagged by the 0.002 rule and not blocked.
+
+| Wallet | Base ETH | Base USDC | Base WETH | Unichain ETH | Unichain USDC | Unichain WETH |
+| --- | --- | --- | --- | --- | --- | --- |
+| buyer1 | 0.00047 | 0.09 | 0.01036 | 0.00100 | 0.57 | 0.00470 |
+| buyer2 | 0.00047 | 5.77 | 0.00308 | 0.00100 | 2.40 | 0.00350 |
+| buyer3 | 0.00050 | 2.37 | 0.00140 | 0.00050 | 2.88 | 0.00712 |
+| seller2 | 0.00050 | 5.62 | 0.00000 | 0.00009 | 2.13 | 0.00018 |
+| empty | 0.00030 | 1.00 | 0.00050 | 0.00000 | 0.00 | 0.00000 |
+
+Short for a demo round: buyer1 has under 1 USDC on both chains, so it should sell (it holds 0.0104 WETH on Base and 0.0047 on Unichain). seller2 has under 0.0005 WETH on both chains and 0.00009 ETH of gas on Unichain, so it should not sell until it is refilled. buyer2 and buyer3 are ready as buyers on both chains. No funds were moved between test wallets.
