@@ -29,6 +29,10 @@ export type Receipt = {
   seconds: number | null;
   matchedValueUsdc: bigint;
   feeSavedUsdc: bigint;
+  /** What the desk pulled from the wallet for this bell, before anything came back. */
+  took: bigint;
+  /** What came back in the token you gave: the part of a pool swap the pool could not fill inside your limit, a failed swap, and rounding. */
+  cameBack: bigint;
 };
 
 export async function loadReceipt(order: MyOrder, trader: Address): Promise<Receipt> {
@@ -77,11 +81,22 @@ export async function loadReceipt(order: MyOrder, trader: Address): Promise<Rece
   for (const m of matched) matchedValueUsdc += gotToken === "USDC" ? m.amount : price ? (m.amount * price) / 10n ** 18n : 0n;
   const feeSavedUsdc = (matchedValueUsdc * POOL_FEE_PPM) / 1_000_000n;
 
+  // Net of everything that came back in the token you gave. A pool swap that fills only part of an order hands the rest
+  // back in the same transaction, so "gave" is what you really spent, not what the desk pulled first.
+  const took = collect && collect.ok ? collect.amount : 0n;
+  const gaveTok = gaveTokenOf(order.isBuy);
+  let cameBack = 0n;
+  for (const l of legs) {
+    if (l.kind === "pool") cameBack += l.returned ?? 0n;
+    else if ((l.kind === "refund" || l.kind === "dust") && l.token === gaveTok) cameBack += l.amount;
+  }
+  if (cameBack > took) cameBack = took;
+
   return {
     order, placedTs, addedTx, bellTx, bellTs, price, endTx, endReason,
     collectTx: collect ? collect.tx : null, closeTx: close ? close.tx : null,
-    gaveToken: gaveTokenOf(order.isBuy),
-    gave: collect && collect.ok ? collect.amount : 0n,
+    gaveToken: gaveTok,
+    gave: took - cameBack, took, cameBack,
     legs, got: gotAmount > 0n ? { token: gotToken, amount: gotAmount } : null, paidChain: biggest ? biggest.chainId : null,
     seconds: lastTs !== null && bellTs !== null ? Math.max(0, lastTs - bellTs) : null,
     matchedValueUsdc, feeSavedUsdc,

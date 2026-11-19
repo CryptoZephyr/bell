@@ -16,7 +16,11 @@ const amt = (token: "USDC" | "WETH", n: bigint) => (token === "USDC" ? `${fmtUsd
 function legWords(l: Leg): string {
   switch (l.kind) {
     case "matched": return `Matched with another trader. You received ${amt(l.token, l.amount)}.`;
-    case "pool": return `Filled in the Uniswap pool. You received ${amt(l.token, l.amount)}.`;
+    case "pool": {
+      const gaveTok = l.token === "WETH" ? "USDC" : "WETH";
+      const back = l.returned && l.returned > 0n ? ` The pool could not fill the rest inside your limit, so ${amt(gaveTok, l.returned)} came back to you in the same transaction.` : "";
+      return l.used !== undefined ? `Filled in the Uniswap pool: the pool took ${amt(gaveTok, l.used)} and you received ${amt(l.token, l.amount)}.${back}` : `Filled in the Uniswap pool. You received ${amt(l.token, l.amount)}.`;
+    }
     case "refund": return `Returned to you: ${amt(l.token, l.amount)}.`;
     case "dust": return `A tiny rounding amount, ${amt(l.token, l.amount)}, paid out.`;
   }
@@ -105,7 +109,7 @@ export function Receipt({ chainId, orderId }: { chainId: number; orderId: number
             ) : (
               <>
                 <div className="receipt-pair">
-                  <div><span className="muted small">You gave</span><div className="receipt-num">{rc.gave > 0n ? amt(rc.gaveToken, rc.gave) : "Nothing recorded"}</div></div>
+                  <div><span className="muted small">You gave</span><div className="receipt-num">{rc.took > 0n ? amt(rc.gaveToken, rc.gave) : "Nothing recorded"}</div>{rc.cameBack > 1000n || (rc.gaveToken === "WETH" && rc.cameBack > 0n) ? <span className="muted small">The desk took {amt(rc.gaveToken, rc.took)}, and {amt(rc.gaveToken, rc.cameBack)} came back.</span> : null}</div>
                   <div><span className="muted small">You got</span><div className="receipt-num">{rc.got ? amt(rc.got.token, rc.got.amount) : "Nothing recorded"}</div></div>
                 </div>
                 <dl className="split">
