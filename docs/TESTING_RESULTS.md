@@ -134,6 +134,33 @@ Written during the testing phase (TESTING_PHASE page in Notion, phase 3.5). Real
 | DEF-13 | S2 | The receipt overstated "You gave" when a pool fill used only part of the input | Fixed: "You gave" is net of what came back and the receipt says how much came back. Re-checked on 84532:18 (0.80 taken, 0.27 back, 0.53 gave) |
 | DEF-11 | S3 | During a pause an unheard order is called Not accepted instead of saying the bell is paused | Fixed: it says the bell is paused and the order was not heard |
 
+## Rounds page
+
+Built from ROUNDS_SPEC (19 Nov 2026), frontend only. No contract change and no redeploy. Routes `#/rounds` and `#/round/<lasnaBlock>`, data layer in `frontend/src/chain/rounds.ts`, tests `npm run test:rounds`, `tests/rounds-live.mjs`, `tests/rounds-watch.mjs`, `tests/rounds-states.mjs`, `tests/rounds-perf.mjs`.
+
+| Test | Result | Evidence |
+| --- | --- | --- |
+| RP-1 | PASS | `npm run test:rounds`: 43 checks on hand-made events. One pair across two chains, a buyer filled on the pool (used 0.516476, returned 3.408848 USDC), a failed pull with the others settling, a drift-guard skip (and a run of skips folding into one row), expired orders only, a lost delivery closed by a later bell, a chain whose logs failed (that chain is "not readable", its seconds null, the round's seconds null, never 0), the same-chain match told apart from a rounding refund, the summary median and the cache rules |
+| RP-2 | PASS | The README's round (bell 09:58:30 UTC 18 Nov, Lasna block 8643401, tx 0x5aec5411...d34a8d): Settled, 2 orders, 1 pair, 799.90 USDC per ETH, last payout 5 s after the bell (Base 4 s, Unichain 5 s). Nine transactions listed with explorer links: bell, two pulls, settle, three payouts and two closes |
+| RP-3 | PASS | Page against the testing record, within 1 s. G-01 bell 18:59:47 6 s (record 6), G-02 19:01:33 8 s (8), G-03 19:05:06 8 s (8), G-04-final 21:07:01 7 s (7), R-01 5 s (5), R-02 5 s (5), R-04 9 s (record 8 to 9), R-08 19:35:07 9 s (9), R-03 5 s (record 4, a rounding refund lands one second after the last payout and the page counts every confirmed Paid) |
+| RP-4 | PASS | The C-10 drift voids (19:49:14, 19:52:45, 19:54:31) show as Skipped with the referee's reason and no seconds. The last two fold into one row ("2 bells in a row") |
+| RP-5 | PASS | Live round (buyer1 on Base, seller2 on Unichain) with the page open. Bell 10:29:56, last payout 10:30:01 (5 s). The new row slid in at the top at 10:30:01 as "settling", then said "paid out in 5 seconds" at 10:30:13, one poll later. The chain says 5 s. The app's own bell card said "Settled in 5 seconds" |
+| RP-6 | PASS | eth_getLogs on the Base RPC blocked: rows and the detail page say "Payout times not readable", the chain shows n/a, and no number appears for it. The round's total is not shown either |
+| RP-7 | PASS | No horizontal overflow at 320, 390, 768, 1280 and 1440 px on both routes. axe: no violations on both routes, phone and desktop, light and dark. Keyboard pass ok with both routes added. Screenshots in /tmp/rp (not kept in the repo) |
+| RP-8 | ACCEPTED BY OWNER ("accept RP-8", 19 Nov). Seconds target met on warm runs, facts target a near miss | Measured in a cloud container behind a proxy (each RPC round trip 160 to 380 ms), 19 rows (20 rounds, two skipped bells fold into one row). Normal connection, three runs: Lasna facts of all rows 4.4 s (cold, first run after a server start), 3.5 s, 3.2 s. Every row's seconds read 6.7 s (cold), 5.7 s, 5.2 s. Targets 3 s and 6 s, so the seconds target is met on warm runs and missed by 0.7 s cold, and the facts target is missed by 0.2 to 0.5 s warm. Slow 4G: facts 6.0 to 6.3 s, seconds 10.7 to 10.8 s (no target set). What got it here: preconnect hints for the four RPC hosts, the scan and the desk reads for the first page start before the Rounds screen's code has loaded, six log windows in flight in one step, 12 parallel block timestamp reads, JSON-RPC batching, eight desk reads at once. A second visit paints finished rounds from the browser cache at once. The owner can time it on a real connection with `SPEED_ONLY=1 node tests/rounds-perf.mjs` and the numbers here will probably be better there |
+
+Defects found while building and fixed before the PR:
+
+| ID | Severity | What | Status |
+| --- | --- | --- | --- |
+| RPD-1 | S2 | A settled round with no payout (funds went back) was labelled "payout times not readable". It now says "No payout" and the strip draws it as an outline with its own label | Fixed |
+| RPD-2 | S2 | An open round (still settling) was labelled "payout times not readable". It now says "settling, waiting for the payouts" | Fixed |
+| RPD-3 | S3 | The seconds strip drew an outline bar for rounds whose desks had not been read yet, which looked like a failure. Only rounds whose desks were read get a bar | Fixed |
+| RPD-4 | S3 | The hidden text table for the strip made the page 855 px wide at phone width. It sits in a wrapper now | Fixed |
+| RPD-5 | S3 | The newest rounds were read only when scrolled into view, so the median said "of 2 rounds" at first. The first page of 20 is read once the scan finishes | Fixed |
+
+Known limits, stated on the page: seconds are whole seconds because block timestamps are. A wallet with two orders on one chain in one round can't have a pool fill split between them, because the Swapped event has no order id. Rounds from retired deployments are not shown.
+
 ## Not run, blocked or partial
 
 - DONE: P-01 health and subscriptions and A-08 source check, run by calling the Reactive MCP over HTTP (see their rows).

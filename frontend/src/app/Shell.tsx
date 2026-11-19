@@ -193,7 +193,7 @@ export function Footer({ route }: { route: Route }) {
           <p>Swap across chains. Orders meet at the bell.</p>
         </div>
         <nav className="footer-cols" aria-label="Footer">
-          <div><h2>App</h2><ul><li><a href={href.trade}>Trade</a></li><li><a href={href.bell}>Live bell</a></li><li><a href={href.activity}>Activity</a></li></ul></div>
+          <div><h2>App</h2><ul><li><a href={href.trade}>Trade</a></li><li><a href={href.bell}>Live bell</a></li><li><a href={href.activity}>Activity</a></li><li><a href={href.rounds}>Rounds</a></li></ul></div>
           <div><h2>Learn</h2><ul><li><a href={`${href.landing}#how`}>How it works</a></li><li><a href={href.help}>Help</a></li></ul></div>
           <div><h2>Trust</h2><ul><li><a href={href.contracts}>Contracts and proof</a></li></ul></div>
         </nav>

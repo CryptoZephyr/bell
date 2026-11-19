@@ -12,6 +12,8 @@ import { Dock } from "../ui/Dock";
 const Bell = lazy(() => import("../screens/Bell").then((m) => ({ default: m.Bell })));
 const Trade = lazy(() => import("../screens/Trade").then((m) => ({ default: m.Trade })));
 const Activity = lazy(() => import("../screens/Activity").then((m) => ({ default: m.Activity })));
+const Rounds = lazy(() => import("../screens/Rounds").then((m) => ({ default: m.Rounds })));
+const RoundPage = lazy(() => import("../screens/Round").then((m) => ({ default: m.RoundPage })));
 const Receipt = lazy(() => import("../screens/Receipt").then((m) => ({ default: m.Receipt })));
 const Landing = lazy(() => import("../screens/Landing").then((m) => ({ default: m.Landing })));
 const Contracts = lazy(() => import("../screens/Contracts").then((m) => ({ default: m.Contracts })));
@@ -24,6 +26,8 @@ function Screen({ route }: { route: ReturnType<typeof useRoute> }) {
     case "bell": return <Bell />;
     case "trade": return <Trade />;
     case "activity": return <Activity />;
+    case "rounds": return <Rounds />;
+    case "round": return <RoundPage block={route.block} />;
     case "receipt": return <Receipt chainId={route.chainId} orderId={route.orderId} />;
     case "contracts": return <Contracts />;
     case "help": return <HelpScreen />;
@@ -33,7 +37,7 @@ function Screen({ route }: { route: ReturnType<typeof useRoute> }) {
 
 export function App() {
   const route = useRoute();
-  const wide = route.name === "bell" || route.name === "landing" || route.name === "contracts" || route.name === "states";
+  const wide = route.name === "bell" || route.name === "landing" || route.name === "contracts" || route.name === "states" || route.name === "rounds" || route.name === "round";
   return (
     <WalletProvider>
       <Announcer>
