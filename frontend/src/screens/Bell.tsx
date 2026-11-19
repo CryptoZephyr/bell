@@ -93,6 +93,7 @@ export function Bell() {
             loading={r.loading && !snap}
           />
           <Button href={href.trade} glyph={<IconTrade />} label={empty ? "Place the first order" : "Place an order"} />
+          {empty && <Button href={href.rounds} kind="secondary" label="See the last rounds" />}
         </div>
         <div className="bell-right stack-lg">
           <MeetBar book={snap?.book ?? []} price={snap?.referencePrice ?? null} />
