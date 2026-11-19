@@ -144,4 +144,11 @@ Written during the testing phase (TESTING_PHASE page in Notion, phase 3.5). Real
 
 ## Sign-off state
 
-Criterion 1 (every test PASS or accepted by the owner): met, with D-01 and D-02 accepted by the owner and D-03 (other browsers) and D-05 (screen readers) left as known gaps for the owner to accept. Criterion 2 (S1 and S2 fixed and re-tested): met. Criterion 3 (three clean demo runs): met by G-01 to G-03 on the fixed build, without screen recordings. Criterion 4 (gates 15 and 16 with links): needs the owner to accept the remaining items.
+Signed off complete by the owner on 19 Nov 2026, at main 0546b1b.
+
+Criterion 1 (every test PASS or accepted by the owner): met. Accepted by the owner as known gaps: D-03 (Firefox and Safari desktop not run, Rabby covered the second wallet), D-05 (screen readers not run), the in-app run of the 300 s PULL_TIMEOUT path (proven live on v5 on 18 Nov), and DEF-10 (Slow 4G usable Bell about 11 s against a 6 s target).
+Criterion 2 (S1 and S2 fixed and re-tested): met. DEF-01, 02, 06 (S1) and DEF-05, 13 (S2).
+Criterion 3 (three clean demo runs): met by G-01 to G-03 on the fixed build. Accepted without screen recordings, since the Phase 4 demo video is the recording.
+Criterion 4 (gates 15 and 16 with links): met. Gate 15 closed from T-01 to T-06 and the screen tests, gate 16 from G-01 to G-03.
+
+Phase 4 (proof and submission) can start.
