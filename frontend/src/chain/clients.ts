@@ -8,10 +8,10 @@ export function client(chainId: number): PublicClient {
   let c = cache.get(chainId);
   if (!c) {
     if (chainId === LASNA_ID) {
-      c = createPublicClient({ chain: lasna, transport: http(undefined, { retryCount: 3, retryDelay: 600, timeout: 12_000 }) });
+      c = createPublicClient({ chain: lasna, transport: http(undefined, { retryCount: 3, retryDelay: 600, timeout: 12_000, batch: { wait: 8 } }) });
     } else {
       const d = DESKS[chainId as DeskChainId];
-      c = createPublicClient({ chain: d.chain, transport: http(d.rpc, { retryCount: 3, retryDelay: 600, timeout: 12_000 }) });
+      c = createPublicClient({ chain: d.chain, transport: http(d.rpc, { retryCount: 3, retryDelay: 600, timeout: 12_000, batch: { wait: 8 } }) });
     }
     cache.set(chainId, c);
   }
@@ -30,7 +30,7 @@ export function logClient(chainId: number): PublicClient {
   let chain;
   if (chainId === LASNA_ID) { chain = lasna; }
   else { const d = DESKS[chainId as DeskChainId]; chain = d.chain; url = d.logRpc; span = d.logSpan; }
-  c = createPublicClient({ chain, transport: http(url, { retryCount: 3, retryDelay: 600, timeout: 15_000 }) });
+  c = createPublicClient({ chain, transport: http(url, { retryCount: 3, retryDelay: 600, timeout: 15_000, batch: { wait: 8 } }) });
   const orig = c.getContractEvents.bind(c) as (a: any) => Promise<any[]>;
   // Callers take the head block from the state RPC, which can be a block or two ahead of this log RPC. A log RPC refuses
   // a range that ends past its own head, so clamp the end to the head this RPC has actually reached.
