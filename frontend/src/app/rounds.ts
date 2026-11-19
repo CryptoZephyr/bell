@@ -1,7 +1,7 @@
 // The Rounds page's state: the newest rounds first, older ones on request, a quiet poll for new ones, and desk reads that
 // only run for rows on screen. Finished rounds come from the viewer's own browser cache when it has them.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadRound, readCache, scanNewer, scanRounds, seedRound, writeCache, type Round, type RoundSeed } from "../chain/rounds";
+import { loadRound, readCache, scanNewer, scanRounds, seedRound, takePreloaded, takeWarmScan, writeCache, type Round, type RoundSeed } from "../chain/rounds";
 
 const PAGE = 20;
 const POLL_MS = 12_000;
@@ -75,7 +75,9 @@ export function useRounds(): RoundsState {
     attempts.current.set(key, (attempts.current.get(key) ?? 0) + 1);
     const retry = () => setTimeout(() => { if (alive.current) ensureRef.current(key); }, RETRY_MS);
     try {
-      const r = await loadRound(seed);
+      const pre = takePreloaded(key);
+      let r = pre ? await pre.catch(() => null) : null;
+      if (!r) r = await loadRound(seed);
       put([r]);
       // A round that could not be read completely gets another try, since public RPCs have good and bad moments.
       // A young round keeps trying. An old one stops after three, so pruned logs do not cause endless requests.
@@ -109,7 +111,8 @@ export function useRounds(): RoundsState {
     let stop = false;
     const go = async () => {
       try {
-        const s = await scanRounds(null, PAGE, (part) => { if (!stop) { merge(part, false); setLoading(false); } });
+        const warmed = takeWarmScan();
+        const s = warmed ? await warmed : await scanRounds(null, PAGE, (part) => { if (!stop) { merge(part, false); setLoading(false); } });
         if (stop) return;
         merge(s.seeds, false);
         first.current = false;
