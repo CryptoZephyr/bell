@@ -186,18 +186,20 @@ On 19 Nov 2026 the history from c87c684 onward was rewritten so every commit car
 
 | ID in this log | ID on main now | Commit |
 |---|---|---|
-| 0546b1b | 9cfd245 | Receipt: show what you really spent when part of a pool fill comes back |
-| 078e293 | 9faa919 | frontend: say paid only from a confirmed payout (audit H1 to H3) (#2) |
-| 0bb10b4 | d1323fc | chore: add the Reactive MCP server for sessions, and a device and screen reader checklist |
-| 3d9703b | e0dc21c | frontend: fix false Refunded and Nothing to pay from unreadable Unichain logs (DEF-01, DEF-02) |
-| 4b5b891 | b060fdb | frontend: approving or wrapping no longer flashes a green Order placed (DEF-06) |
-| 82ee29a | 8aba232 | docs: Reactive health, subscription and source checks pass (P-01, A-08) |
-| 8ca3584 | acc60a5 | frontend: fix the open polish defects (DEF-03, 07 to 12) and split the bundle |
-| 912018a | 056efd6 | docs: record the owner's phone test (D-01, D-02 accepted) |
-| 9b0f7c1 | ce68663 | docs: probe the Vercel production branch |
-| a026120 | 341d6fc | chore: record the Base pool realignment to 795 (testing phase P-03) |
-| b883ab9 | 3f9f61a | frontend: say when an order was refused, and why one was removed (DEF-04, DEF-05) |
-| da5595f | 6781ae0 | Update README for clarity and formatting |
+| 0546b1b | 4a7af55 | Receipt: show what you really spent when part of a pool fill comes back |
+| 078e293 | c3212ca | frontend: say paid only from a confirmed payout (audit H1 to H3) (#2) |
+| 0bb10b4 | 95bd2bd | chore: add the Reactive MCP server for sessions, and a device and screen reader checklist |
+| 3d9703b | 3907733 | frontend: fix false Refunded and Nothing to pay from unreadable Unichain logs (DEF-01, DEF-02) |
+| 4b5b891 | 1b20b57 | frontend: approving or wrapping no longer flashes a green Order placed (DEF-06) |
+| 82ee29a | b3dfa98 | docs: Reactive health, subscription and source checks pass (P-01, A-08) |
+| 8ca3584 | 5ec60d4 | frontend: fix the open polish defects (DEF-03, 07 to 12) and split the bundle |
+| 912018a | 632e1df | docs: record the owner's phone test (D-01, D-02 accepted) |
+| 9b0f7c1 | 7a56719 | docs: probe the Vercel production branch |
+| a026120 | 5ec4726 | chore: record the Base pool realignment to 795 (testing phase P-03) |
+| b883ab9 | 25eea67 | frontend: say when an order was refused, and why one was removed (DEF-04, DEF-05) |
+| da5595f | d7b9440 | Update README for clarity and formatting |
+
+On 21 Nov 2026 the range after 4f67bf4 was re-signed with the owner's GitHub-verified key and the four GitHub merge and web-edit commits got CryptoZephyr as committer, so GitHub shows every commit on main as Verified. Trees, messages, authors and committer dates are unchanged, so the IDs in the right column changed again. A commit made after this note keeps the ID it has.
 
 ## Pre-demo top-up
 
