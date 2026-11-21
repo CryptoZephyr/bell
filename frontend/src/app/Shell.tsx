@@ -10,6 +10,9 @@ import { useTheme, type ThemePref } from "./theme";
 import { href, type Route } from "./router";
 import { addressUrl, chainName } from "../chain/config";
 
+// The public repository. Linked from the footer's Trust column and the account sheet.
+const REPO_URL = "https://github.com/CryptoZephyr/bell";
+
 // ---- live regions: one polite for round progress, one assertive for errors ----
 type Announce = (msg: string, assertive?: boolean) => void;
 const AnnounceCtx = createContext<Announce>(() => {});
@@ -120,6 +123,7 @@ function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void })
       <nav className="stack" aria-label="More">
         <a className="sheet-link" href={href.contracts} onClick={onClose}>Contracts and proof</a>
         <a className="sheet-link" href={href.help} onClick={onClose}>Help</a>
+        <a className="sheet-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">Open source<IconArrowUpRight size={16} /><span className="sr-only"> (opens GitHub in a new tab)</span></a>
       </nav>
       <p className="small muted"><span className="tag-testnet" style={{ color: "var(--warning-text)" }}>Testnet</span> Bell runs on test networks. Use test funds only.</p>
       {w.status === "connected" && <Button kind="secondary" label="Disconnect" onPress={() => { w.disconnect(); onClose(); }} />}
@@ -195,7 +199,7 @@ export function Footer({ route }: { route: Route }) {
         <nav className="footer-cols" aria-label="Footer">
           <div><h2>App</h2><ul><li><a href={href.trade}>Trade</a></li><li><a href={href.bell}>Live bell</a></li><li><a href={href.activity}>Activity</a></li><li><a href={href.rounds}>Rounds</a></li></ul></div>
           <div><h2>Learn</h2><ul><li><a href={`${href.landing}#how`}>How it works</a></li><li><a href={href.help}>Help</a></li></ul></div>
-          <div><h2>Trust</h2><ul><li><a href={href.contracts}>Contracts and proof</a></li></ul></div>
+          <div><h2>Trust</h2><ul><li><a href={href.contracts}>Contracts and proof</a></li><li><a href={REPO_URL} target="_blank" rel="noopener noreferrer">Open source<IconArrowUpRight size={14} /><span className="sr-only"> (opens GitHub in a new tab)</span></a></li></ul></div>
         </nav>
         <div className="footer-base">
           <ThemeChoice onDark />

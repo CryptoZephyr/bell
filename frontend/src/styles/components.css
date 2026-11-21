@@ -182,7 +182,7 @@ dialog.sheet .grab { width: 40px; height: 4px; border-radius: 2px; background: v
 }
 .wallet-opt img { border-radius: 8px; }
 .wallet-opt:hover:not(:disabled) { border-color: var(--text); }
-.sheet-link { display: flex; align-items: center; min-height: 48px; padding: 0 16px; border-radius: 16px; background: var(--inset); text-decoration: none; font-weight: 600; }
+.sheet-link { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border-radius: 16px; background: var(--inset); text-decoration: none; font-weight: 600; }
 .sheet-link:hover { outline: 1.5px solid var(--border-control-inset); }
 
 /* theme choice: native radios drawn as our own segmented control */
@@ -208,7 +208,7 @@ dialog.sheet .grab { width: 40px; height: 4px; border-radius: 2px; background: v
 .footer-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .footer-cols h2 { font-size: 13px; font-weight: 600; color: var(--on-ink-muted); margin-bottom: 10px; }
 .footer-cols ul { display: grid; gap: 4px; }
-.footer-cols a { display: inline-flex; align-items: center; min-height: 44px; color: var(--on-ink); text-decoration: none; font-weight: 600; }
+.footer-cols a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--on-ink); text-decoration: none; font-weight: 600; }
 .footer-cols a:hover { color: var(--signal); }
 .footer-cols a:focus-visible { outline: 2px solid var(--signal); }
 .footer-base { display: grid; gap: 12px; justify-items: start; color: var(--on-ink-muted); font-size: 14px; }

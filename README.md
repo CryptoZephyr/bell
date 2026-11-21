@@ -5,7 +5,7 @@ Bell swaps ETH and USDC across Base and Unichain by pairing you with a trader on
 Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not affiliated with Reactive Network, Uniswap, Base, Unichain or Circle · App: https://bell-gold-six.vercel.app · Code: https://github.com/CryptoZephyr/bell
 <!-- Add "· Demo: <video link>" to the line above once the video is up. -->
 
- start here: [the 2 minute tour](#2-verbs-no-wallet-or-signup-needed) Full docs at [`docs/`](docs/).
+Start here: [the 2-minute tour](#2-verbs), no wallet or signup needed. Full docs are in [`docs/`](docs/).
 
 ## 2 verbs
 
@@ -180,9 +180,9 @@ test/                        contract tests (79)
 deployments/                 address records, bell.json is current
 scripts/                     deploy, fund reserves, align pools, live rounds, reserve watch
 frontend/src/chain/          reads the three chains: rounds, orders, payouts, receipts
-frontend/src/screens/        Landing, Bell, Trade, Activity, Receipt, Contracts and proof, Help
+frontend/src/screens/        Landing, Bell, Trade, Activity, Receipt, Rounds, Round, Contracts and proof, Help
 frontend/src/ui/             the living mark, bell card, tickets, buttons, sheets
-frontend/tests/              accessibility, keyboard, end-to-end and paid-truth tests
+frontend/tests/              accessibility, keyboard, end-to-end, paid-truth and Rounds tests
 docs/                        evidence, security review, frontend audit, testing results
 vendor/reactive-lib-omni/    the Reactive library, pinned as a git submodule
 ```
