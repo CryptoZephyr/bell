@@ -2,10 +2,22 @@
 
 Bell swaps ETH and USDC across Base and Unichain by pairing you with a trader on the other chain instead of a bridge, and pays both sides about 5 seconds after the bell.
 
+It is for someone who holds USDC or ETH on one chain, wants the other asset, and doesn't want to bridge first. You pay on your own chain and are paid on whichever chain your match is on.
+
+Measured on 31 rounds on the deployed contracts (18 to 19 Nov 2026): the median time from the bell to the last payout is 5 seconds (3 to 10), and 22 of the 31 landed within 6 seconds. [How we measured it](#latency-measured-across-the-full-loop).
+
 Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not affiliated with Reactive Network, Uniswap, Base, Unichain or Circle · App: https://bell-gold-six.vercel.app · Code: https://github.com/CryptoZephyr/bell
 <!-- Add "· Demo: <video link>" to the line above once the video is up. -->
 
 Start here: [the 2-minute tour](#2-verbs), no wallet or signup needed. Full docs are in [`docs/`](docs/).
+
+For judges, in the order the submission asks:
+
+- Public repository: this one, MIT licensed.
+- Deployed contract addresses: [Deployed contracts](#deployed-contracts).
+- Transaction hashes for the full loop: [Proof it works](#proof-it-works), and every round since on the [Rounds page](https://bell-gold-six.vercel.app/#/rounds).
+- Latency numbers across the full loop: [Latency](#latency-measured-across-the-full-loop).
+- What the reactive contract does: [Why Reactive is essential](#why-reactive-is-essential).
 
 ## 2 verbs
 
@@ -28,6 +40,26 @@ Start here: [the 2-minute tour](#2-verbs), no wallet or signup needed. Full docs
 | Device checklist | Steps for testing on real phones, wallet apps and screen readers | [`docs/DEVICE_TEST_CHECKLIST.md`](docs/DEVICE_TEST_CHECKLIST.md) |
 | Contract review | Our own review of both contracts: what we fixed and what we accepted | [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md) |
 
+## Latency, measured across the full loop
+
+Every Second Counts asks for latency numbers across the full loop. The loop is: a trader places an order on a desk, the referee on Lasna hears it, the bell rings, Reactive callbacks pull the funds on both chains, and then pay out. Every number below is read from block timestamps on the chains, for the 31 rounds on the current contracts whose payouts could be read (18 to 19 Nov 2026, many from our own wallets). The same data is live on the [Rounds page](https://bell-gold-six.vercel.app/#/rounds).
+
+| Step | Median | Range | Source |
+|---|---|---|---|
+| You move your funds away after placing an order, and the referee drops the order | the same second | one live test | C-07 in [`docs/TESTING_RESULTS.md`](docs/TESTING_RESULTS.md) |
+| Order placed on a desk, then in the referee's book | 0 to 1 s | | R-10 in `docs/TESTING_RESULTS.md` |
+| Bell, then the first pull confirmed on a desk | 2 s | 1 to 4 s | 31 rounds |
+| Bell, then Lasna settles the round | 2 s | 1 to 5 s | 31 rounds |
+| Bell, then the last payout | 5 s | 3 to 10 s | 31 rounds |
+
+By size of the book, bell to last payout: 1 to 2 orders took a median of 4 s (3 to 6 s, 21 rounds), 3 to 4 orders 8 s (6 to 9 s, 6 rounds), and 5 to 6 orders 9 s (8 to 10 s, 4 rounds).
+
+What the seconds are made of. Settlement takes two Reactive hops. At the bell, the referee on Lasna asks each desk to pull the trader's funds, and about 2 seconds later the pulls are confirmed. Only then, with every pull reported, does the referee pair the orders and ask the desks to pay, and the last payout lands 2 to 3 seconds after the first pull. The two steps are the price of safety: a desk only pays out money it holds, and one failed pull drops only that order while the others settle. More orders mean more callbacks, which is why a full book takes 8 to 10 seconds. Settling a full book of 6 orders used 577k gas of the 900k callback cap ([`docs/EVIDENCE.md`](docs/EVIDENCE.md)).
+
+What the seconds do not include. The bell itself. It rings about every 110 seconds (100 Lasna blocks of the Cron100 timer) and only while orders exist, so an order placed into a quiet market waits 7 to 110 seconds for its first bell. From placing an order to being paid is therefore up to about two minutes. That is the design, not an accident: a bell collects buyers and sellers so they pair at one price, with no bridge and no solver. The latency we measure and claim is the reaction time after the bell. We have not measured other cross-chain swaps, so we make no comparison.
+
+How we measured it. Base Sepolia blocks are about 200 ms apart, so Bell never counts blocks as time. Every figure is the difference between block timestamps, which are whole seconds, so each is good to about a second.
+
 ## Why Reactive is essential
 
 Moving value between chains today takes a bridge and then a swap, or a solver who fronts their own money on the other chain and charges for it. Bell needs neither, because Reactive is the exchange. Without Reactive there is no shared book, no bell and no settlement across two chains. There is no server, keeper or bot. Turn off every laptop and the rounds keep running, as long as the referee has REACT to pay for its reactions. We ran it out of REACT on purpose: the app showed the bell as paused, and Bell recovered after a top-up.
@@ -35,6 +67,9 @@ Moving value between chains today takes a bridge and then a swap, or a solver wh
 - No Reactive, no shared book. The referee subscribes to both desks' `OrderPlaced` events and keeps one book across two chains. It also watches each trader's token transfers while their order is open, and removes the order if the funds move (`contracts/BellReferee.sol`: `configure`, `_onOrderPlaced`, `_onTransfer`).
 - No Reactive, no bell. The referee listens to Lasna's Cron100 timer only while orders exist, so a quiet market costs nothing (`_onOrderPlaced`, `_bell`, `_finishRound`).
 - No Reactive, no settlement. Every pull, payout and pool swap is a Reactive callback, and the desks refuse calls from anyone but the Reactive callback proxy acting for the referee (`_settle` and `_callback` in `BellReferee.sol`, `onlyServiceProvider` in `contracts/BellDesk.sol`).
+- No Reactive, no speed. Every step in the latency table is a Reactive reaction or callback, and none waits on a keeper, a poller or a person. The referee hears an order, a cancel, a pull report or a swap on the reference pool as the event happens on its own chain, and a callback it sends lands on a desk chain about 2 seconds later. A trader who moves their funds away after placing an order is dropped in the same second.
+
+What the referee uses from Reactive: 9 standing event subscriptions (`OrderPlaced`, `Collected`, `Swapped` and `OrderCancelled` on each desk, and `Swap` on the Unichain reference pool), a `Transfer` watch for each open order, the Cron100 timer while orders exist, and callbacks to both desk chains. It pays for every reaction in REACT from its reserves, about 0.016 REACT each. The Reactive MCP reports it HEALTHY with 9 of 9 subscriptions active, and `check_rc_source` returns OK_SOURCE for both contracts.
 
 ## Architecture
 
@@ -73,6 +108,18 @@ sequenceDiagram
 ```
 
 Orders, and the funds of a round while it settles, sit on the desks. The book and the price sit on the referee. The one schedule is Lasna's Cron100 timer, about every 110 seconds (100 Lasna blocks), and the referee only listens to it while orders exist. The app keeps nothing on a server. Your browser remembers only your theme and the wallet you last used.
+
+## Deployed contracts
+
+All on testnets. The app and the scripts read these from [`deployments/bell.json`](deployments/bell.json).
+
+| Contract | Network | Address | Deployed in |
+|---|---|---|---|
+| Referee | Reactive Lasna | [`0x83546642aCC2B2419812367A90f537d68aabC857`](https://lasna.reactscan.net/address/0x83546642aCC2B2419812367A90f537d68aabC857) | [`0x1e9a6ce7…51bf58`](https://lasna.reactscan.net/tx/0x1e9a6ce7f3d331e6b2988b9c37a5df398eb18611c894d285db6dda5cdf51bf58) |
+| Desk | Base Sepolia | [`0x2f5666F3Db9fC20F527ABba6746001ab4DccB2b6`](https://sepolia.basescan.org/address/0x2f5666F3Db9fC20F527ABba6746001ab4DccB2b6) | [`0x79064f54…f48d0`](https://sepolia.basescan.org/tx/0x79064f5456a691907b396a16499d414bccf6723838826536e68bb19f8cbf48d0) |
+| Desk | Unichain Sepolia | [`0x0B22446b4637c06cF61BA446096BB99cFd139bb2`](https://sepolia.uniscan.xyz/address/0x0B22446b4637c06cF61BA446096BB99cFd139bb2) | [`0x3ee2f651…246ec6`](https://sepolia.uniscan.xyz/tx/0x3ee2f65141d0a7add669eca33a7e699ad9c4b6375ed42a39410fa13e18246ec6) |
+
+The referee was wired to the two desks and the reference pool once, in the `configure` transaction [`0xbe599747…8b5b5233`](https://lasna.reactscan.net/tx/0xbe599747ce3be04461c702c21e921d07c046f8385446fe17892c6b8b8d9b5233). After that call neither the desks nor the pool can be changed. The reference pool is the Uniswap v4 USDC/WETH pool with id `0x71fba4ef34765b317417131bb7cef92bd4c43405babf9386cacdd10cf8641422` on Unichain Sepolia.
 
 ## Who holds which key (or permission)
 
@@ -160,7 +207,7 @@ One round on the deployed contracts, 18 Nov 2026. A seller on Base and a buyer o
 | 09:58:35 | Unichain Sepolia | Paid the seller 0.239970 USDC on Unichain | [`0x16937232…033064`](https://sepolia.uniscan.xyz/tx/0x169372323efa806032cb66c2b4dd1ca60b1468ea755487e8f4229a3748033064) |
 | 09:58:35 | Unichain Sepolia | Filled the buyer's leftover 0.079991 USDC on the pool | [`0x2e8dade3…e43c76`](https://sepolia.uniscan.xyz/tx/0x2e8dade3f11feaac355ac4f3ce369330d2b2e578131e31fa43c281b447e43c76) |
 
-Every round since, with its seconds, is on the [Rounds page](https://bell-gold-six.vercel.app/#/rounds). Every live round in the testing phase paid out 4 to 6 seconds after the bell with one or two pairs, and 8 to 9 seconds with a full book of 6 orders. The three demo runs and every other test are in [`docs/TESTING_RESULTS.md`](docs/TESTING_RESULTS.md).
+Every round since, with its seconds, is on the [Rounds page](https://bell-gold-six.vercel.app/#/rounds). Rounds with one or two orders paid out in a median of 4 seconds, and a full book of 5 to 6 orders in 9 seconds (8 to 10). The three demo runs and every other test are in [`docs/TESTING_RESULTS.md`](docs/TESTING_RESULTS.md).
 
 It also works for someone outside the build. On 18 Nov 2026 the project owner placed a buy of 0.0001 ETH on Base from their own wallet in the hosted app. The bell rang 13 seconds later ([`0xc41d840c…eff800`](https://lasna.reactscan.net/tx/0xc41d840cb06d72d7513b8845d95a3b2a78a53e7e8ac9b6103a7e6a675beff800)), the desk collected 0.078519 USDC, and the Base pool paid out 0.0000986726 WETH 4 seconds after the bell.
 
