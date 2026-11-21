@@ -11,7 +11,7 @@ Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not af
 
 Start here: [the 2-minute tour](#2-verbs), no wallet or signup needed. Full docs are in [`docs/`](docs/).
 
-For judges, in the order the submission asks:
+Quick asks:
 
 - Public repository: this one, MIT licensed.
 - Deployed contract addresses: [Deployed contracts](#deployed-contracts).
