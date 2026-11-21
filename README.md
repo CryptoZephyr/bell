@@ -196,10 +196,14 @@ Keep at least 1 REACT in the referee's reserves. A reactive contract in debt sto
 
 ## Proof it works
 
-One round on the deployed contracts, 18 Nov 2026. A seller on Base and a buyer on Unichain were paired at 799.90 USDC per ETH. Bell to last payout: 5 seconds. The same round on the Rounds page, with its split sheet and every transaction: https://bell-gold-six.vercel.app/#/round/8643401
+One round on the deployed contracts, 18 Nov 2026. A seller on Base and a buyer on Unichain were paired at 799.90 USDC per ETH. Bell to last payout: 5 seconds. The first four rows are the origin events, the orders placed on the two desks, and the referee's reactions to them. Each reaction carries the origin transaction hash and block, so the loop can be followed from the origin event to the callbacks. The chains' clocks differ by about a second, so the seller's reaction shows a second before its origin block. The same round on the Rounds page, with its split sheet and every transaction: https://bell-gold-six.vercel.app/#/round/8643401
 
 | Time (UTC) | Chain | What happened | Transaction |
 |---|---|---|---|
+| 09:57:01 | Unichain Sepolia | The buyer placed an order for 0.0004 ETH, the origin event (`OrderPlaced`) | [`0x226eeec4…53ce92`](https://sepolia.uniscan.xyz/tx/0x226eeec48ba530119dfbcf72e2c61321d767160b04e5bac4105447cf1353ce92) |
+| 09:57:01 | Reactive Lasna | The referee reacted and put the buyer's order in the book | [`0x68c6c391…2e2ddc`](https://lasna.reactscan.net/tx/0x68c6c39173ce28baaf2be3e6c28b9c1898b266b30336adaa5b94ed12374e2ddc) |
+| 09:57:05 | Base Sepolia | The seller placed an order for 0.0003 ETH, the origin event (`OrderPlaced`) | [`0x43b7b5d1…33638e`](https://sepolia.basescan.org/tx/0x43b7b5d103a889bddd55096bef9941ffdea2e423f13890e50daa0e9a2033638e) |
+| 09:57:04 | Reactive Lasna | The referee reacted and put the seller's order in the book | [`0xe35a2b28…cd39e9`](https://lasna.reactscan.net/tx/0xe35a2b287b3acc1749ac875f642eea9f78075710dbac593b52fd840605cd39e9) |
 | 09:58:30 | Reactive Lasna | The bell rang: 2 orders in, 1 pair | [`0x5aec5411…d34a8d`](https://lasna.reactscan.net/tx/0x5aec54115b6d96498c9b943725966e6fc7f26a54d9ce803b782d39baebd34a8d) |
 | 09:58:32 | Base Sepolia | Pulled the seller's 0.0003 WETH | [`0x38b88ed9…2aa8ad`](https://sepolia.basescan.org/tx/0x38b88ed926fb0a5545b9e146cdf95ce6aa8ba4aa9103f14189de4e85d92aa8ad) |
 | 09:58:33 | Unichain Sepolia | Pulled the buyer's 0.319961 USDC | [`0x448f4007…ba90cb`](https://sepolia.uniscan.xyz/tx/0x448f400799dee1b878f1957836f1a6301eeb2bce1bc26f7eb639943e67ba90cb) |
