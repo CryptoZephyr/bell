@@ -201,6 +201,21 @@ On 19 Nov 2026 the history from c87c684 onward was rewritten so every commit car
 
 On 21 Nov 2026 the range after 4f67bf4 was re-signed with the owner's GitHub-verified key and the four GitHub merge and web-edit commits got CryptoZephyr as committer, so GitHub shows every commit on main as Verified. Trees, messages, authors and committer dates are unchanged, so the IDs in the right column changed again. A commit made after this note keeps the ID it has.
 
+## First bell wait
+
+21 Nov 2026. How long an order waits for its first bell when it arrives in an empty book. Method: read every `OrderAdded`, `OrderDropped`, `BellRang` and `BellVoid` event of the referee on Lasna from its deploy block (8643201) to the head (228 events), keep the set of open orders, and for each order added while that set was empty take the time to the next `BellRang` or `BellVoid`, from block timestamps. The scratch script is not in the repo.
+
+| Measure | Result |
+| --- | --- |
+| First orders into an empty book with a bell after them | 35 found, 34 used |
+| Wait to the first bell | 1 to 101 s, median 46 s (mean 49 s) |
+| Why it varies | The bell comes at the next timer tick (one block after a block that is a multiple of 100). In 33 of the 35 samples the wait was exactly the number of blocks to that tick, so it depends only on where in the 100 block cycle the order lands. The worst case is just over 100 blocks, about 106 s |
+| One sample left out | 156 s. The order sat in the book with parked orders whose limits were far from the market. The bell at the next tick fired, but with nothing eligible the referee emits no event, so the next visible bell came 148 blocks later. It was not a real wait for a bell |
+| The 1 s sample | The order landed on a tick block while the timer was still on from the previous book, so the bell came the next block |
+| Bell interval | 18 consecutive bells exactly 100 blocks apart were 105 to 108 s apart, median 106 s |
+
+This replaces the "7 to 110 seconds" in an earlier draft of the README. The 7 s came from one early test and was not a minimum. The app's Landing and Help copy still says "about every 110 seconds", which is 4 seconds above the measured 106.
+
 ## Pre-demo top-up
 
 19 Nov 2026, before the demo recording. The referee had 1.4868 REACT of reserves (HEALTHY, no debt, 9 of 9 subscriptions), below the 3 REACT kept for a demo. The deployer sent 0.03 ETH to the Reactive faucet on Ethereum Sepolia (`0x9b9BB25f1A81078C544C829c5EB7822d747Cf434`, 1 ETH gives 100 REACT), tx `0x2aec57aef2e39bb6ea1a64d3dc540526fced3d66b2212233cf2f346202aa4ed9`. The deployer's Lasna balance went from 0.534 to 3.684 REACT. `EXTRA=3.35 npx hardhat run scripts/top-up-reserves.js --network lasna` then deposited 3.35 REACT into the referee's reserves, depositTo tx `0x9e227b9b74de33f2451e5283e446b7a4f381fe1c9a5a6a70415d23963b74c3d1`. Reserves now 4.8368 REACT, confirmed by the Reactive MCP get_rc_health: HEALTHY, no debt, 9 of 9 subscriptions active, 0 reverts. About 0.33 REACT stays in the deployer for gas.

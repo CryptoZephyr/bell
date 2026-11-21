@@ -56,7 +56,7 @@ By size of the book, bell to last payout: 1 to 2 orders took a median of 4 s (3 
 
 What the seconds are made of. Settlement takes two Reactive hops. At the bell, the referee on Lasna asks each desk to pull the trader's funds, and about 2 seconds later the pulls are confirmed. Only then, with every pull reported, does the referee pair the orders and ask the desks to pay, and the last payout lands 2 to 3 seconds after the first pull. The two steps are the price of safety: a desk only pays out money it holds, and one failed pull drops only that order while the others settle. More orders mean more callbacks, which is why a full book takes 8 to 10 seconds. Settling a full book of 6 orders used 577k gas of the 900k callback cap ([`docs/EVIDENCE.md`](docs/EVIDENCE.md)).
 
-What the seconds do not include. The bell itself. It rings about every 110 seconds (100 Lasna blocks of the Cron100 timer) and only while orders exist, so an order placed into a quiet market waits 7 to 110 seconds for its first bell. From placing an order to being paid is therefore up to about two minutes. That is the design, not an accident: a bell collects buyers and sellers so they pair at one price, with no bridge and no solver. The latency we measure and claim is the reaction time after the bell. We have not measured other cross-chain swaps, so we make no comparison.
+What the seconds do not include. The bell itself. It rings every 100 Lasna blocks of the Cron100 timer, which is 105 to 108 seconds (median 106, over 18 consecutive bells), and only while orders exist. An order placed into a quiet market waits for the next bell, which comes at the next timer tick, so the wait depends on where in the cycle the order lands. Over the 34 first orders into an empty book on the current contracts it ran from 1 to 101 seconds, with a median of 46 seconds. From placing an order to being paid is therefore up to about two minutes. That is the design, not an accident: a bell collects buyers and sellers so they pair at one price, with no bridge and no solver. The latency we measure and claim is the reaction time after the bell. We have not measured other cross-chain swaps, so we make no comparison.
 
 How we measured it. Base Sepolia blocks are about 200 ms apart, so Bell never counts blocks as time. Every figure is the difference between block timestamps, which are whole seconds, so each is good to about a second.
 
@@ -107,7 +107,7 @@ sequenceDiagram
   Note over R,DB: A leftover fills on the trader's own pool, never past their limit.
 ```
 
-Orders, and the funds of a round while it settles, sit on the desks. The book and the price sit on the referee. The one schedule is Lasna's Cron100 timer, about every 110 seconds (100 Lasna blocks), and the referee only listens to it while orders exist. The app keeps nothing on a server. Your browser remembers only your theme and the wallet you last used.
+Orders, and the funds of a round while it settles, sit on the desks. The book and the price sit on the referee. The one schedule is Lasna's Cron100 timer, every 100 Lasna blocks (about 106 seconds), and the referee only listens to it while orders exist. The app keeps nothing on a server. Your browser remembers only your theme and the wallet you last used.
 
 ## Deployed contracts
 
