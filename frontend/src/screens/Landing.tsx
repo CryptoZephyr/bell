@@ -10,7 +10,7 @@ import { href } from "../app/router";
 
 const STEPS = [
   { n: 1, title: "Place an order", text: "Choose buy or sell, how much, and your worst price. Your money stays in your wallet." },
-  { n: 2, title: "Wait for the bell", text: "About every 110 seconds the bell rings. Buyers and sellers from both chains meet at one fair Uniswap price." },
+  { n: 2, title: "Wait for the bell", text: "About every 106 seconds the bell rings. Buyers and sellers from both chains meet at one fair Uniswap price." },
   { n: 3, title: "Get paid", text: "Matched orders are paid straight away. Whatever finds no match goes through the Uniswap pool, inside your limit." },
 ];
 

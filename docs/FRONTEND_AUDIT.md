@@ -9,7 +9,7 @@ The audit was first run on 8aadf68. The build session pushed 4f67bf4 (phone layo
 - H1, H2 and H3 are fixed on branch `fix/paid-truth` (PR #2). See [`audit/fix-paid-truth/`](audit/fix-paid-truth/) for the verification screenshots, and `frontend/tests/paid-truth.mjs` for the unit tests.
 - M3 is fixed in 4f67bf4.
 - M5 is fixed on main (19 Nov 2026). `#/states` exists only in development builds. In production it opens the landing page and the gallery's code isn't in the bundle.
-- M1 and L7 are fixed on main (19 Nov 2026). A button without its own glyph shows no icon, and the tick appears only on success. The bell's rhythm reads "about every 110 seconds" everywhere.
+- M1 and L7 are fixed on main (19 Nov 2026). A button without its own glyph shows no icon, and the tick appears only on success. The bell's rhythm reads "about every 106 seconds" everywhere, the measured interval (changed from 110 on 21 Nov 2026).
 - Every other Medium and Low finding below is still open.
 
 ## Method
@@ -82,7 +82,7 @@ Fix direction: match legs to the round's orders, count only `Paid` and `Swapped`
 | L4 | Contracts page: Copy buttons are outline pills and explorer links are plain text, where the spec has icon actions and explorer chips. The rule text "two open orders, 15 minutes" is hard-coded, though `MAX_ORDERS_PER_TRADER` and `ORDER_TTL` are already read from the referee. | `src/screens/Contracts.tsx:53` |
 | L5 | The loading skeleton is a plain block, not shaped like the content. | `states-*.png` |
 | L6 | Activity's empty-state button sits on the card's bottom edge. | `activity-phone-*.png` |
-| L7 | Fixed 19 Nov 2026 ("about every 110 seconds"). Copy said "every couple of minutes" on Landing and "about every 3 minutes" elsewhere. Pick one. | `src/screens/Landing.tsx:13` |
+| L7 | Fixed 19 Nov 2026, set to the measured "about every 106 seconds" on 21 Nov 2026. Copy said "every couple of minutes" on Landing and "about every 3 minutes" elsewhere. Pick one. | `src/screens/Landing.tsx:13` |
 | L8 | One 550 kB JavaScript bundle. Split viem and the wallet code so phones load faster. | `npm run build` output |
 | L9 | The footer "Help" link is 36px wide. That passes WCAG 2.2 AA (24px) but is below the design's 44px target. | `tests/keys.mjs` notes |
 

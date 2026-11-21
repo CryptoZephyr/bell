@@ -214,7 +214,7 @@ On 21 Nov 2026 the range after 4f67bf4 was re-signed with the owner's GitHub-ver
 | The 1 s sample | The order landed on a tick block while the timer was still on from the previous book, so the bell came the next block |
 | Bell interval | 18 consecutive bells exactly 100 blocks apart were 105 to 108 s apart, median 106 s |
 
-This replaces the "7 to 110 seconds" in an earlier draft of the README. The 7 s came from one early test and was not a minimum. The app's Landing and Help copy still says "about every 110 seconds", which is 4 seconds above the measured 106.
+This replaces the "7 to 110 seconds" in an earlier draft of the README. The 7 s came from one early test and was not a minimum. The app's Landing and Help copy said "about every 110 seconds", 4 seconds above the measured 106. Changed to "about every 106 seconds" on 21 Nov 2026, along with a "two minutes" left in Help.
 
 ## Pre-demo top-up
 
