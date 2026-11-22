@@ -6,10 +6,9 @@ It is for someone who holds USDC or ETH on one chain, wants the other asset, and
 
 Measured on 31 rounds on the deployed contracts (18 to 19 Nov 2026): the median time from the bell to the last payout is 5 seconds (3 to 10), and 22 of the 31 landed within 6 seconds. [How we measured it](#latency-measured-across-the-full-loop).
 
-Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not affiliated with Reactive Network, Uniswap, Base, Unichain or Circle · App: https://bell-gold-six.vercel.app · Code: https://github.com/CryptoZephyr/bell
-<!-- Add "· Demo: <video link>" to the line above once the video is up. -->
+Built for the Reactive Omni Buildathon 2026, track Every Second Counts · Not affiliated with Reactive Network, Uniswap, Base, Unichain or Circle · App: https://bell-gold-six.vercel.app · Code: https://github.com/CryptoZephyr/bell · Video: https://youtu.be/AxQ6GApe3JI
 
-Start here: [the 2-minute tour](#2-verbs), no wallet or signup needed. Full docs are in [`docs/`](docs/).
+Start here: watch [the 2:28 video](https://youtu.be/AxQ6GApe3JI), a live round from two wallets to both payouts, or take [the 2-minute tour](#2-verbs), no wallet or signup needed. Full docs are in [`docs/`](docs/).
 
 Quick asks:
 
